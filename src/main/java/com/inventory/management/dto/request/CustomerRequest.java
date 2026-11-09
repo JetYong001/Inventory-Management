@@ -1,0 +1,67 @@
+
+package com.inventory.management.dto.request;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public class CustomerRequest {
+
+    @NotBlank(message = "Customer code is required")
+    @Size(max = 30)
+    private String customerCode;
+
+    @NotBlank(message = "Customer name is required")
+    @Size(max = 150)
+    private String customerName;
+
+    @Size(max = 30)
+    private String phone;
+
+    @Email(message = "Invalid email format")
+    @Size(max = 150)
+    private String email;
+
+    @Size(max = 500)
+    private String address;
+
+    public String getCustomerCode() {
+        return customerCode;
+    }
+
+    public void setCustomerCode(String customerCode) {
+        this.customerCode = customerCode;
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+}
