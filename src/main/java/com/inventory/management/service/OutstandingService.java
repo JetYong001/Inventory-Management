@@ -1,19 +1,18 @@
+
 package com.inventory.management.service;
 
 import com.inventory.management.dto.response.OutstandingResponse;
 import com.inventory.management.dto.response.OutstandingSummaryResponse;
 import com.inventory.management.entity.PurchaseInvoice;
-import com.inventory.management.entity.PurchaseCreditNote;
 import com.inventory.management.entity.SalesInvoice;
-import com.inventory.management.entity.SalesCreditNote;
-import com.inventory.management.enums.CreditNoteStatus;
-import com.inventory.management.enums.PurchaseInvoiceStatus;
-import com.inventory.management.enums.SalesInvoiceStatus;
+import com.inventory.management.entity.SupplierCreditTransaction;
+import com.inventory.management.enums.CustomerCreditTransactionType;
+import com.inventory.management.enums.SupplierCreditTransactionType;
+import com.inventory.management.repository.CustomerCreditTransactionRepository;
 import com.inventory.management.repository.PaymentRepository;
-import com.inventory.management.repository.PurchaseCreditNoteRepository;
 import com.inventory.management.repository.PurchaseInvoiceRepository;
-import com.inventory.management.repository.SalesCreditNoteRepository;
 import com.inventory.management.repository.SalesInvoiceRepository;
+import com.inventory.management.repository.SupplierCreditTransactionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,38 +20,47 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Stream;
 
 @Service
 @Transactional(readOnly = true)
 public class OutstandingService {
 
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
+
+    private static final List<CustomerCreditTransactionType> CUSTOMER_APPLIED_TYPES =
+            List.of(
+                    CustomerCreditTransactionType.CREDIT_APPLIED,
+                    CustomerCreditTransactionType.CREDIT_APPLICATION_REVERSED
+            );
+
     private final SalesInvoiceRepository salesInvoiceRepository;
     private final PurchaseInvoiceRepository purchaseInvoiceRepository;
     private final PaymentRepository paymentRepository;
-    private final SalesCreditNoteRepository salesCreditNoteRepository;
-    private final PurchaseCreditNoteRepository purchaseCreditNoteRepository;
+    private final CustomerCreditTransactionRepository customerCreditTransactionRepository;
+    private final SupplierCreditTransactionRepository supplierCreditTransactionRepository;
 
     public OutstandingService(
             SalesInvoiceRepository salesInvoiceRepository,
             PurchaseInvoiceRepository purchaseInvoiceRepository,
             PaymentRepository paymentRepository,
-            SalesCreditNoteRepository salesCreditNoteRepository,
-            PurchaseCreditNoteRepository purchaseCreditNoteRepository
+            CustomerCreditTransactionRepository customerCreditTransactionRepository,
+            SupplierCreditTransactionRepository supplierCreditTransactionRepository
     ) {
         this.salesInvoiceRepository = salesInvoiceRepository;
         this.purchaseInvoiceRepository = purchaseInvoiceRepository;
         this.paymentRepository = paymentRepository;
-        this.salesCreditNoteRepository = salesCreditNoteRepository;
-        this.purchaseCreditNoteRepository = purchaseCreditNoteRepository;
+        this.customerCreditTransactionRepository = customerCreditTransactionRepository;
+        this.supplierCreditTransactionRepository = supplierCreditTransactionRepository;
     }
 
     public List<OutstandingResponse> getCustomerOutstandings() {
 
-        return getOutstandingSalesInvoices()
+        return salesInvoiceRepository.findAll()
                 .stream()
                 .map(this::mapSalesInvoice)
-                .filter(response -> response.getOutstandingAmount().compareTo(BigDecimal.ZERO) > 0)
+                .filter(response ->
+                        response.getOutstandingAmount().compareTo(ZERO) > 0
+                )
                 .sorted(Comparator.comparing(
                         OutstandingResponse::getInvoiceDate,
                         Comparator.nullsLast(Comparator.reverseOrder())
@@ -62,10 +70,12 @@ public class OutstandingService {
 
     public List<OutstandingResponse> getSupplierOutstandings() {
 
-        return getOutstandingPurchaseInvoices()
+        return purchaseInvoiceRepository.findAll()
                 .stream()
                 .map(this::mapPurchaseInvoice)
-                .filter(response -> response.getOutstandingAmount().compareTo(BigDecimal.ZERO) > 0)
+                .filter(response ->
+                        response.getOutstandingAmount().compareTo(ZERO) > 0
+                )
                 .sorted(Comparator.comparing(
                         OutstandingResponse::getInvoiceDate,
                         Comparator.nullsLast(Comparator.reverseOrder())
@@ -75,89 +85,73 @@ public class OutstandingService {
 
     public OutstandingSummaryResponse getOutstandingSummary() {
 
-        List<OutstandingResponse> salesOutstandings = getCustomerOutstandings();
-        List<OutstandingResponse> purchaseOutstandings = getSupplierOutstandings();
+        List<OutstandingResponse> customerOutstandings =
+                getCustomerOutstandings();
 
-        BigDecimal customerOutstanding = salesOutstandings.stream()
+        List<OutstandingResponse> supplierOutstandings =
+                getSupplierOutstandings();
+
+        BigDecimal customerOutstanding = customerOutstandings.stream()
                 .map(OutstandingResponse::getOutstandingAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .reduce(ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal supplierOutstanding = purchaseOutstandings.stream()
+        BigDecimal supplierOutstanding = supplierOutstandings.stream()
                 .map(OutstandingResponse::getOutstandingAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .reduce(ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        OutstandingSummaryResponse response = new OutstandingSummaryResponse();
+        OutstandingSummaryResponse response =
+                new OutstandingSummaryResponse();
 
         response.setTotalCustomerOutstanding(customerOutstanding);
         response.setTotalSupplierOutstanding(supplierOutstanding);
-        response.setUnpaidSalesInvoiceCount(salesOutstandings.size());
-        response.setUnpaidPurchaseInvoiceCount(purchaseOutstandings.size());
+
+        response.setUnpaidSalesInvoiceCount(
+                customerOutstandings.size()
+        );
+
+        response.setUnpaidPurchaseInvoiceCount(
+                supplierOutstandings.size()
+        );
+
         response.setTotalOutstandingInvoices(
-                salesOutstandings.size() + purchaseOutstandings.size()
+                customerOutstandings.size()
+                        + supplierOutstandings.size()
         );
 
         return response;
     }
 
-    private List<SalesInvoice> getOutstandingSalesInvoices() {
-
-        return Stream.of(
-                        SalesInvoiceStatus.UNPAID,
-                        SalesInvoiceStatus.PARTIALLY_PAID,
-                        SalesInvoiceStatus.PARTIALLY_CREDITED,
-                        SalesInvoiceStatus.PARTIALLY_SETTLED
-                )
-                .flatMap(status ->
-                        salesInvoiceRepository
-                                .findAllByStatusOrderByInvoiceDateDesc(status)
-                                .stream()
-                )
-                .toList();
-    }
-
-    private List<PurchaseInvoice> getOutstandingPurchaseInvoices() {
-
-        return Stream.of(
-                        PurchaseInvoiceStatus.UNPAID,
-                        PurchaseInvoiceStatus.PARTIALLY_PAID,
-                        PurchaseInvoiceStatus.PARTIALLY_CREDITED,
-                        PurchaseInvoiceStatus.PARTIALLY_SETTLED
-                )
-                .flatMap(status ->
-                        purchaseInvoiceRepository
-                                .findAllByStatusOrderByInvoiceDateDesc(status)
-                                .stream()
-                )
-                .toList();
-    }
-
     private OutstandingResponse mapSalesInvoice(SalesInvoice invoice) {
 
-        BigDecimal totalAmount = safeAmount(invoice.getTotalAmount());
+        Long invoiceId = invoice.getId();
 
-        BigDecimal paidAmount = safeAmount(
-                paymentRepository.getTotalSalesInvoicePayments(invoice.getId())
+        BigDecimal totalAmount = safeAmount(
+                invoice.getTotalAmount()
         );
 
-        BigDecimal creditAmount = salesCreditNoteRepository
-                .findBySalesInvoiceId(invoice.getId())
-                .stream()
-                .filter(creditNote -> creditNote.getStatus() == CreditNoteStatus.ISSUED)
-                .map(SalesCreditNote::getTotalAmount)
-                .map(this::safeAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal paidAmount = safeAmount(
+                paymentRepository.getTotalSalesInvoicePayments(invoiceId)
+        );
+
+        BigDecimal appliedCredit = safeAmount(
+                customerCreditTransactionRepository
+                        .getNetAppliedCreditForSalesInvoice(
+                                invoiceId,
+                                CUSTOMER_APPLIED_TYPES
+                        )
+        ).max(ZERO);
 
         BigDecimal outstandingAmount = calculateOutstanding(
                 totalAmount,
                 paidAmount,
-                creditAmount
+                appliedCredit
         );
 
         OutstandingResponse response = new OutstandingResponse();
 
-        response.setInvoiceId(invoice.getId());
+        response.setInvoiceId(invoiceId);
         response.setInvoiceNumber(invoice.getInvoiceNumber());
 
         response.setInvoiceDate(
@@ -168,65 +162,95 @@ public class OutstandingService {
 
         response.setPartyCode(invoice.getCustomerCode());
         response.setPartyName(invoice.getCustomerName());
+
         response.setTotalAmount(totalAmount);
         response.setOutstandingAmount(outstandingAmount);
 
         return response;
     }
 
-    private OutstandingResponse mapPurchaseInvoice(PurchaseInvoice invoice) {
+    private OutstandingResponse mapPurchaseInvoice(
+            PurchaseInvoice invoice
+    ) {
 
-        BigDecimal totalAmount = safeAmount(invoice.getTotalAmount());
+        Long invoiceId = invoice.getId();
 
-        BigDecimal paidAmount = safeAmount(
-                paymentRepository.getTotalPurchaseInvoicePayments(invoice.getId())
+        BigDecimal totalAmount = safeAmount(
+                invoice.getTotalAmount()
         );
 
-        BigDecimal creditAmount = purchaseCreditNoteRepository
-                .findByPurchaseInvoiceId(invoice.getId())
-                .stream()
-                .filter(creditNote -> creditNote.getStatus() == CreditNoteStatus.ISSUED)
-                .map(PurchaseCreditNote::getTotalAmount)
-                .map(this::safeAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal paidAmount = safeAmount(
+                paymentRepository.getTotalPurchaseInvoicePayments(invoiceId)
+        );
+
+        BigDecimal appliedCredit = calculateNetSupplierCredit(invoiceId);
 
         BigDecimal outstandingAmount = calculateOutstanding(
                 totalAmount,
                 paidAmount,
-                creditAmount
+                appliedCredit
         );
 
         OutstandingResponse response = new OutstandingResponse();
 
-        response.setInvoiceId(invoice.getId());
+        response.setInvoiceId(invoiceId);
         response.setInvoiceNumber(invoice.getInvoiceNumber());
         response.setInvoiceDate(invoice.getInvoiceDate());
 
         response.setPartyCode(invoice.getSupplierCode());
         response.setPartyName(invoice.getSupplierName());
+
         response.setTotalAmount(totalAmount);
         response.setOutstandingAmount(outstandingAmount);
 
         return response;
     }
 
+    private BigDecimal calculateNetSupplierCredit(Long invoiceId) {
+
+        List<SupplierCreditTransaction> transactions =
+                supplierCreditTransactionRepository
+                        .findByPurchaseInvoice_IdOrderByCreatedAtDesc(
+                                invoiceId
+                        );
+
+        BigDecimal applied = transactions.stream()
+                .filter(transaction ->
+                        transaction.getTransactionType()
+                                == SupplierCreditTransactionType.CREDIT_APPLIED
+                )
+                .map(SupplierCreditTransaction::getAmount)
+                .map(this::safeAmount)
+                .map(BigDecimal::abs)
+                .reduce(ZERO, BigDecimal::add);
+
+        BigDecimal reversed = transactions.stream()
+                .filter(transaction ->
+                        transaction.getTransactionType()
+                                == SupplierCreditTransactionType.CREDIT_APPLICATION_REVERSED
+                )
+                .map(SupplierCreditTransaction::getAmount)
+                .map(this::safeAmount)
+                .map(BigDecimal::abs)
+                .reduce(ZERO, BigDecimal::add);
+
+        return applied.subtract(reversed).max(ZERO);
+    }
+
     private BigDecimal calculateOutstanding(
             BigDecimal totalAmount,
             BigDecimal paidAmount,
-            BigDecimal creditAmount
+            BigDecimal appliedCredit
     ) {
-        BigDecimal outstanding = totalAmount
-                .subtract(paidAmount)
-                .subtract(creditAmount);
 
-        if (outstanding.compareTo(BigDecimal.ZERO) < 0) {
-            outstanding = BigDecimal.ZERO;
-        }
-
-        return outstanding.setScale(2, RoundingMode.HALF_UP);
+        return safeAmount(totalAmount)
+                .subtract(safeAmount(paidAmount))
+                .subtract(safeAmount(appliedCredit))
+                .max(ZERO)
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal safeAmount(BigDecimal amount) {
-        return amount == null ? BigDecimal.ZERO : amount;
+        return amount == null ? ZERO : amount;
     }
 }
