@@ -1,4 +1,3 @@
-
 package com.inventory.management.dto.request;
 
 import jakarta.validation.constraints.Email;
@@ -6,10 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class CustomerRequest {
-
-    @NotBlank(message = "Customer code is required")
-    @Size(max = 30)
-    private String customerCode;
 
     @NotBlank(message = "Customer name is required")
     @Size(max = 150)
@@ -24,14 +19,6 @@ public class CustomerRequest {
 
     @Size(max = 500)
     private String address;
-
-    public String getCustomerCode() {
-        return customerCode;
-    }
-
-    public void setCustomerCode(String customerCode) {
-        this.customerCode = customerCode;
-    }
 
     public String getCustomerName() {
         return customerName;

@@ -1,4 +1,3 @@
-
 package com.inventory.management.dto.request;
 
 import jakarta.validation.constraints.Email;
@@ -6,10 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class SupplierRequest {
-
-    @NotBlank(message = "Supplier code is required")
-    @Size(max = 30)
-    private String supplierCode;
 
     @NotBlank(message = "Supplier name is required")
     @Size(max = 150)
@@ -27,14 +22,6 @@ public class SupplierRequest {
 
     @Size(max = 500)
     private String address;
-
-    public String getSupplierCode() {
-        return supplierCode;
-    }
-
-    public void setSupplierCode(String supplierCode) {
-        this.supplierCode = supplierCode;
-    }
 
     public String getSupplierName() {
         return supplierName;

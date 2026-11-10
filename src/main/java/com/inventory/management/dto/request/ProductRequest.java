@@ -9,36 +9,25 @@ import java.math.BigDecimal;
 
 public class ProductRequest {
 
-    @NotBlank(message = "Product code is required")
-    private String productCode;
-
     @NotBlank(message = "Product name is required")
     private String productName;
 
     private String description;
 
     @NotNull(message = "Cost price is required")
-    @DecimalMin(value = "0.0", message = "Cost price cannot be negative")
+    @DecimalMin(value = "0.0")
     private BigDecimal costPrice;
 
     @NotNull(message = "Selling price is required")
-    @DecimalMin(value = "0.0", message = "Selling price cannot be negative")
+    @DecimalMin(value = "0.0")
     private BigDecimal sellingPrice;
 
     @NotNull(message = "Minimum stock is required")
-    @Min(value = 0, message = "Minimum stock cannot be negative")
+    @Min(value = 0)
     private Integer minimumStock;
 
     @NotNull(message = "Category ID is required")
     private Long categoryId;
-
-    public String getProductCode() {
-        return productCode;
-    }
-
-    public void setProductCode(String productCode) {
-        this.productCode = productCode;
-    }
 
     public String getProductName() {
         return productName;

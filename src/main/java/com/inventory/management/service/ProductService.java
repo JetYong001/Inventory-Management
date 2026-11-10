@@ -1,21 +1,19 @@
-
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.ProductRequest;
 import com.inventory.management.dto.response.ProductResponse;
 import com.inventory.management.entity.Category;
 import com.inventory.management.entity.Product;
-import com.inventory.management.exception.DuplicateProductException;
 import com.inventory.management.exception.ProductNotFoundException;
 import com.inventory.management.exception.CategoryNotFoundException;
 import com.inventory.management.repository.CategoryRepository;
 import com.inventory.management.repository.ProductRepository;
+import com.inventory.management.util.BusinessCodeGenerator;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,13 +27,8 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
 
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
-            "id",
-            "productCode",
-            "productName",
-            "quantity",
-            "sellingPrice",
-            "costPrice",
-            "createdAt"
+            "id", "productCode", "productName", "quantity",
+            "sellingPrice", "costPrice", "createdAt"
     );
 
     public ProductService(
@@ -46,21 +39,13 @@ public class ProductService {
         this.categoryRepository = categoryRepository;
     }
 
-    // CREATE PRODUCT
-
     public ProductResponse createProduct(ProductRequest request) {
-
-        if (productRepository.existsByProductCode(request.getProductCode())) {
-            throw new DuplicateProductException(
-                    "Product code already exists: " + request.getProductCode()
-            );
-        }
 
         Category category = findCategoryById(request.getCategoryId());
 
         Product product = new Product();
 
-        product.setProductCode(request.getProductCode());
+        product.setProductCode(BusinessCodeGenerator.temporary());
         product.setProductName(request.getProductName());
         product.setDescription(request.getDescription());
         product.setCostPrice(request.getCostPrice());
@@ -70,12 +55,14 @@ public class ProductService {
         product.setActive(true);
         product.setCategory(category);
 
-        Product savedProduct = productRepository.save(product);
+        Product saved = productRepository.saveAndFlush(product);
 
-        return convertToResponse(savedProduct);
+        saved.setProductCode(
+                BusinessCodeGenerator.format("P", saved.getId())
+        );
+
+        return convertToResponse(productRepository.save(saved));
     }
-
-    // GET ALL PRODUCTS WITH OPTIONAL ACTIVE FILTER
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> getAllProducts(
@@ -85,33 +72,27 @@ public class ProductService {
             String sortBy,
             String direction
     ) {
+        Pageable pageable = createPageable(
+                page, size, sortBy, direction
+        );
 
-        Pageable pageable = createPageable(page, size, sortBy, direction);
-
-        Page<Product> productPage;
+        Page<Product> result;
 
         if (active == null) {
-            productPage = productRepository.findAll(pageable);
+            result = productRepository.findAll(pageable);
         } else if (active) {
-            productPage = productRepository.findAllByActiveTrue(pageable);
+            result = productRepository.findAllByActiveTrue(pageable);
         } else {
-            productPage = productRepository.findAllByActiveFalse(pageable);
+            result = productRepository.findAllByActiveFalse(pageable);
         }
 
-        return productPage.map(this::convertToResponse);
+        return result.map(this::convertToResponse);
     }
-
-    // GET PRODUCT BY ID
 
     @Transactional(readOnly = true)
     public ProductResponse getProductById(Long id) {
-
-        Product product = findProductById(id);
-
-        return convertToResponse(product);
+        return convertToResponse(findProductById(id));
     }
-
-    // SEARCH PRODUCTS WITH OPTIONAL ACTIVE FILTER
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> searchProducts(
@@ -122,43 +103,28 @@ public class ProductService {
             String sortBy,
             String direction
     ) {
-
-        Pageable pageable = createPageable(page, size, sortBy, direction);
+        Pageable pageable = createPageable(
+                page, size, sortBy, direction
+        );
 
         String searchKeyword = keyword == null ? "" : keyword.trim();
 
-        Page<Product> productPage = productRepository.searchProducts(
-                searchKeyword,
-                active,
-                pageable
-        );
-
-        return productPage.map(this::convertToResponse);
+        return productRepository.searchProducts(
+                searchKeyword, active, pageable
+        ).map(this::convertToResponse);
     }
 
-    // UPDATE PRODUCT
-    public ProductResponse updateProduct(Long id, ProductRequest request) {
-
+    public ProductResponse updateProduct(
+            Long id,
+            ProductRequest request
+    ) {
         Product product = productRepository.findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ProductNotFoundException(
                         "Active product not found with ID: " + id
                 ));
 
-        boolean duplicateCode = productRepository.existsByProductCode(
-                request.getProductCode()
-        );
-
-        if (duplicateCode &&
-                !product.getProductCode().equals(request.getProductCode())) {
-
-            throw new DuplicateProductException(
-                    "Product code already exists: " + request.getProductCode()
-            );
-        }
-
         Category category = findCategoryById(request.getCategoryId());
 
-        product.setProductCode(request.getProductCode());
         product.setProductName(request.getProductName());
         product.setDescription(request.getDescription());
         product.setCostPrice(request.getCostPrice());
@@ -166,30 +132,20 @@ public class ProductService {
         product.setMinimumStock(request.getMinimumStock());
         product.setCategory(category);
 
-        Product updatedProduct = productRepository.save(product);
-
-        return convertToResponse(updatedProduct);
+        return convertToResponse(productRepository.save(product));
     }
 
-
-    // SOFT DELETE PRODUCT
-
     public void deleteProduct(Long id) {
-
         Product product = productRepository.findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ProductNotFoundException(
                         "Active product not found with ID: " + id
                 ));
 
         product.setActive(false);
-
         productRepository.save(product);
     }
 
-    // REACTIVATE PRODUCT
-
     public ProductResponse reactivateProduct(Long id) {
-
         Product product = findProductById(id);
 
         if (Boolean.TRUE.equals(product.getActive())) {
@@ -200,32 +156,22 @@ public class ProductService {
 
         product.setActive(true);
 
-        Product savedProduct = productRepository.save(product);
-
-        return convertToResponse(savedProduct);
+        return convertToResponse(productRepository.save(product));
     }
 
-    // FIND PRODUCT BY ID
-
     private Product findProductById(Long id) {
-
         return productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException(
                         "Product not found with ID: " + id
                 ));
     }
 
-    // FIND CATEGORY BY ID
-
     private Category findCategoryById(Long id) {
-
         return categoryRepository.findById(id)
                 .orElseThrow(() -> new CategoryNotFoundException(
                         "Category not found with ID: " + id
                 ));
     }
-
-    // CREATE PAGEABLE
 
     private Pageable createPageable(
             int page,
@@ -233,11 +179,8 @@ public class ProductService {
             String sortBy,
             String direction
     ) {
-
         if (page < 0) {
-            throw new IllegalArgumentException(
-                    "Page cannot be negative"
-            );
+            throw new IllegalArgumentException("Page cannot be negative");
         }
 
         if (size < 1 || size > 100) {
@@ -256,21 +199,18 @@ public class ProductService {
 
         try {
             sortDirection = Sort.Direction.fromString(direction);
-        } catch (IllegalArgumentException | NullPointerException exception) {
+        } catch (IllegalArgumentException | NullPointerException e) {
             throw new IllegalArgumentException(
                     "Direction must be either 'asc' or 'desc'"
             );
         }
 
-        Sort sort = Sort.by(sortDirection, sortBy);
-
-        return PageRequest.of(page, size, sort);
+        return PageRequest.of(
+                page, size, Sort.by(sortDirection, sortBy)
+        );
     }
 
-    // CONVERT ENTITY TO RESPONSE DTO
-
     private ProductResponse convertToResponse(Product product) {
-
         ProductResponse response = new ProductResponse();
 
         response.setId(product.getId());

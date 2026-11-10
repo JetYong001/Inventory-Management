@@ -1,12 +1,12 @@
-
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.SupplierRequest;
 import com.inventory.management.dto.response.SupplierResponse;
 import com.inventory.management.entity.Supplier;
-import com.inventory.management.exception.DuplicateSupplierException;
 import com.inventory.management.exception.SupplierNotFoundException;
 import com.inventory.management.repository.SupplierRepository;
+import com.inventory.management.util.BusinessCodeGenerator;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,15 +24,9 @@ public class SupplierService {
 
     public SupplierResponse createSupplier(SupplierRequest request) {
 
-        if (supplierRepository.existsBySupplierCode(request.getSupplierCode())) {
-            throw new DuplicateSupplierException(
-                    "Supplier code already exists: " + request.getSupplierCode()
-            );
-        }
-
         Supplier supplier = new Supplier();
 
-        supplier.setSupplierCode(request.getSupplierCode());
+        supplier.setSupplierCode(BusinessCodeGenerator.temporary());
         supplier.setSupplierName(request.getSupplierName());
         supplier.setContactPerson(request.getContactPerson());
         supplier.setPhone(request.getPhone());
@@ -40,14 +34,17 @@ public class SupplierService {
         supplier.setAddress(request.getAddress());
         supplier.setActive(true);
 
-        Supplier savedSupplier = supplierRepository.save(supplier);
+        Supplier saved = supplierRepository.saveAndFlush(supplier);
 
-        return convertToResponse(savedSupplier);
+        saved.setSupplierCode(
+                BusinessCodeGenerator.format("SUP", saved.getId())
+        );
+
+        return convertToResponse(supplierRepository.save(saved));
     }
 
     @Transactional(readOnly = true)
     public List<SupplierResponse> getAllSuppliers() {
-
         return supplierRepository.findAll()
                 .stream()
                 .map(this::convertToResponse)
@@ -56,48 +53,31 @@ public class SupplierService {
 
     @Transactional(readOnly = true)
     public SupplierResponse getSupplierById(Long id) {
-
-        Supplier supplier = findSupplierById(id);
-
-        return convertToResponse(supplier);
+        return convertToResponse(findSupplierById(id));
     }
 
-    public SupplierResponse updateSupplier(Long id, SupplierRequest request) {
-
+    public SupplierResponse updateSupplier(
+            Long id,
+            SupplierRequest request
+    ) {
         Supplier supplier = findSupplierById(id);
 
-        boolean codeExists =
-                supplierRepository.existsBySupplierCode(request.getSupplierCode());
-
-        if (codeExists && !supplier.getSupplierCode().equals(request.getSupplierCode())) {
-            throw new DuplicateSupplierException(
-                    "Supplier code already exists: " + request.getSupplierCode()
-            );
-        }
-
-        supplier.setSupplierCode(request.getSupplierCode());
         supplier.setSupplierName(request.getSupplierName());
         supplier.setContactPerson(request.getContactPerson());
         supplier.setPhone(request.getPhone());
         supplier.setEmail(request.getEmail());
         supplier.setAddress(request.getAddress());
 
-        Supplier updatedSupplier = supplierRepository.save(supplier);
-
-        return convertToResponse(updatedSupplier);
+        return convertToResponse(supplierRepository.save(supplier));
     }
 
     public void deleteSupplier(Long id) {
-
         Supplier supplier = findSupplierById(id);
-
         supplier.setActive(false);
-
         supplierRepository.save(supplier);
     }
 
     private Supplier findSupplierById(Long id) {
-
         return supplierRepository.findById(id)
                 .orElseThrow(() -> new SupplierNotFoundException(
                         "Supplier not found with ID: " + id
@@ -105,7 +85,6 @@ public class SupplierService {
     }
 
     private SupplierResponse convertToResponse(Supplier supplier) {
-
         SupplierResponse response = new SupplierResponse();
 
         response.setId(supplier.getId());
