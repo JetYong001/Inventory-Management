@@ -1,3 +1,4 @@
+
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.SalesReturnRequest;
@@ -29,6 +30,8 @@ import com.inventory.management.repository.SalesCreditNoteRepository;
 import com.inventory.management.repository.PaymentRepository;
 import com.inventory.management.repository.CustomerCreditTransactionRepository;
 
+import com.inventory.management.util.BusinessCodeGenerator;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +40,6 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -128,11 +130,20 @@ public class SalesReturnService {
         Set<Long> processedSalesItemIds = new HashSet<>();
 
         SalesReturn salesReturn = new SalesReturn();
-        salesReturn.setReturnNumber(generateReturnNumber());
+        salesReturn.setReturnNumber(BusinessCodeGenerator.temporary());
         salesReturn.setSales(sales);
         salesReturn.setSalesInvoice(salesInvoice);
         salesReturn.setReturnDate(LocalDateTime.now());
         salesReturn.setReason(request.getReason().trim());
+
+        SalesReturn savedReturn =
+                salesReturnRepository.saveAndFlush(salesReturn);
+
+        savedReturn.setReturnNumber(
+                BusinessCodeGenerator.format("SR", savedReturn.getId())
+        );
+
+        salesReturnRepository.saveAndFlush(savedReturn);
 
         BigDecimal totalAmount = ZERO;
 
@@ -220,7 +231,7 @@ public class SalesReturnService {
 
             SalesReturnItem returnItem = new SalesReturnItem();
 
-            returnItem.setSalesReturn(salesReturn);
+            returnItem.setSalesReturn(savedReturn);
             returnItem.setSalesItem(salesItem);
             returnItem.setProductCode(salesItem.getProductCodeSnapshot());
             returnItem.setProductName(salesItem.getProductNameSnapshot());
@@ -228,23 +239,22 @@ public class SalesReturnService {
             returnItem.setUnitPrice(unitPrice);
             returnItem.setSubtotal(subtotal);
 
-            salesReturn.getItems().add(returnItem);
+            savedReturn.getItems().add(returnItem);
 
             inventoryService.increaseStock(
                     salesItem.getProduct(),
                     returnQuantity,
                     StockMovementType.SALES_RETURN,
-                    salesReturn.getReturnNumber(),
+                    savedReturn.getReturnNumber(),
                     "Sales return"
             );
 
             totalAmount = totalAmount.add(subtotal);
         }
 
-        salesReturn.setTotalAmount(totalAmount);
+        savedReturn.setTotalAmount(totalAmount);
 
-        SalesReturn savedReturn =
-                salesReturnRepository.saveAndFlush(salesReturn);
+        savedReturn = salesReturnRepository.saveAndFlush(savedReturn);
 
         BigDecimal paidAmount = safeAmount(
                 paymentRepository.getTotalSalesInvoicePayments(
@@ -268,7 +278,7 @@ public class SalesReturnService {
 
         SalesCreditNote creditNote = new SalesCreditNote();
 
-        creditNote.setCreditNoteNumber(generateCreditNoteNumber());
+        creditNote.setCreditNoteNumber(BusinessCodeGenerator.temporary());
         creditNote.setSalesReturn(savedReturn);
         creditNote.setSalesInvoice(salesInvoice);
         creditNote.setTotalAmount(totalAmount);
@@ -276,6 +286,13 @@ public class SalesReturnService {
 
         SalesCreditNote savedCreditNote =
                 salesCreditNoteRepository.saveAndFlush(creditNote);
+
+        savedCreditNote.setCreditNoteNumber(
+                BusinessCodeGenerator.format("SCN", savedCreditNote.getId())
+        );
+
+        savedCreditNote =
+                salesCreditNoteRepository.saveAndFlush(savedCreditNote);
 
         createCreditTransaction(
                 customer,
@@ -512,29 +529,5 @@ public class SalesReturnService {
         response.setItems(items);
 
         return response;
-    }
-
-    private String generateReturnNumber() {
-
-        return "SRT-"
-                + LocalDateTime.now().getYear()
-                + "-"
-                + UUID.randomUUID()
-                .toString()
-                .replace("-", "")
-                .substring(0, 12)
-                .toUpperCase();
-    }
-
-    private String generateCreditNoteNumber() {
-
-        return "SCN-"
-                + LocalDateTime.now().getYear()
-                + "-"
-                + UUID.randomUUID()
-                .toString()
-                .replace("-", "")
-                .substring(0, 12)
-                .toUpperCase();
     }
 }

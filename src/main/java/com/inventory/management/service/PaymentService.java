@@ -2,23 +2,21 @@ package com.inventory.management.service;
 
 import com.inventory.management.dto.request.PaymentRequest;
 import com.inventory.management.dto.response.PaymentResponse;
-
 import com.inventory.management.entity.Payment;
 import com.inventory.management.entity.PurchaseInvoice;
 import com.inventory.management.entity.SalesInvoice;
 import com.inventory.management.entity.SupplierCreditTransaction;
-
 import com.inventory.management.enums.PaymentType;
 import com.inventory.management.enums.PurchaseInvoiceStatus;
 import com.inventory.management.enums.SalesInvoiceStatus;
 import com.inventory.management.enums.CustomerCreditTransactionType;
 import com.inventory.management.enums.SupplierCreditTransactionType;
-
 import com.inventory.management.repository.PaymentRepository;
 import com.inventory.management.repository.PurchaseInvoiceRepository;
 import com.inventory.management.repository.SalesInvoiceRepository;
 import com.inventory.management.repository.CustomerCreditTransactionRepository;
 import com.inventory.management.repository.SupplierCreditTransactionRepository;
+import com.inventory.management.util.BusinessCodeGenerator;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -28,7 +26,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -98,7 +95,13 @@ public class PaymentService {
 
         payment.setSalesInvoice(invoice);
 
-        Payment savedPayment = paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.saveAndFlush(payment);
+
+        savedPayment.setPaymentNumber(
+                BusinessCodeGenerator.format("PAY", savedPayment.getId())
+        );
+
+        savedPayment = paymentRepository.save(savedPayment);
 
         updateSalesInvoiceStatus(
                 invoice,
@@ -145,7 +148,13 @@ public class PaymentService {
 
         payment.setPurchaseInvoice(invoice);
 
-        Payment savedPayment = paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.saveAndFlush(payment);
+
+        savedPayment.setPaymentNumber(
+                BusinessCodeGenerator.format("PAY", savedPayment.getId())
+        );
+
+        savedPayment = paymentRepository.save(savedPayment);
 
         updatePurchaseInvoiceStatus(
                 invoice,
@@ -217,7 +226,7 @@ public class PaymentService {
     ) {
         Payment payment = new Payment();
 
-        payment.setPaymentNumber(generatePaymentNumber());
+        payment.setPaymentNumber(BusinessCodeGenerator.temporary());
         payment.setPaymentType(paymentType);
         payment.setPaymentMethod(request.getPaymentMethod());
 
@@ -413,25 +422,6 @@ public class PaymentService {
         } else {
             invoice.setStatus(PurchaseInvoiceStatus.UNPAID);
         }
-    }
-
-    private String generatePaymentNumber() {
-        String paymentNumber;
-
-        do {
-            String randomCode = UUID.randomUUID()
-                    .toString()
-                    .substring(0, 8)
-                    .toUpperCase();
-
-            paymentNumber = "PAY-"
-                    + LocalDate.now().getYear()
-                    + "-"
-                    + randomCode;
-
-        } while (paymentRepository.existsByPaymentNumber(paymentNumber));
-
-        return paymentNumber;
     }
 
     private PaymentResponse convertToResponse(Payment payment) {

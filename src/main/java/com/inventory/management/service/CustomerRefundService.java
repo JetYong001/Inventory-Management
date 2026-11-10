@@ -1,3 +1,4 @@
+
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.CustomerRefundRequest;
@@ -10,6 +11,7 @@ import com.inventory.management.exception.InsufficientCreditException;
 import com.inventory.management.repository.CustomerCreditTransactionRepository;
 import com.inventory.management.repository.CustomerRefundRepository;
 import com.inventory.management.repository.CustomerRepository;
+import com.inventory.management.util.BusinessCodeGenerator;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,9 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.Year;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -43,9 +43,7 @@ public class CustomerRefundService {
     }
 
     @Transactional
-    public CustomerRefundResponse createRefund(
-            CustomerRefundRequest request
-    ) {
+    public CustomerRefundResponse createRefund(CustomerRefundRequest request) {
 
         validateRequest(request);
 
@@ -74,12 +72,10 @@ public class CustomerRefundService {
             );
         }
 
-        String refundNumber = generateRefundNumber();
-
         CustomerRefund refund = new CustomerRefund();
 
+        refund.setRefundNumber(BusinessCodeGenerator.temporary());
         refund.setCustomer(customer);
-        refund.setRefundNumber(refundNumber);
         refund.setAmount(refundAmount);
         refund.setPaymentMethod(request.getPaymentMethod());
         refund.setRefundDate(
@@ -93,6 +89,12 @@ public class CustomerRefundService {
         CustomerRefund savedRefund =
                 refundRepository.saveAndFlush(refund);
 
+        savedRefund.setRefundNumber(
+                BusinessCodeGenerator.format("CRF", savedRefund.getId())
+        );
+
+        savedRefund = refundRepository.saveAndFlush(savedRefund);
+
         CustomerCreditTransaction ledgerTransaction =
                 new CustomerCreditTransaction();
 
@@ -101,7 +103,9 @@ public class CustomerRefundService {
                 CustomerCreditTransactionType.REFUND
         );
         ledgerTransaction.setAmount(refundAmount.negate());
-        ledgerTransaction.setReferenceNumber(refundNumber);
+        ledgerTransaction.setReferenceNumber(
+                savedRefund.getRefundNumber()
+        );
         ledgerTransaction.setRemarks(
                 "Customer refund via " + request.getPaymentMethod()
         );
@@ -112,9 +116,7 @@ public class CustomerRefundService {
         return convertToResponse(savedRefund, savedLedger.getId());
     }
 
-    public List<CustomerRefundResponse> getCustomerRefunds(
-            Long customerId
-    ) {
+    public List<CustomerRefundResponse> getCustomerRefunds(Long customerId) {
 
         if (customerId == null || customerId <= 0) {
             throw new ResponseStatusException(
@@ -220,25 +222,6 @@ public class CustomerRefundService {
                     "Refund date cannot be in the future"
             );
         }
-    }
-
-    private String generateRefundNumber() {
-
-        String refundNumber;
-
-        do {
-            refundNumber = "CRF-"
-                    + Year.now().getValue()
-                    + "-"
-                    + UUID.randomUUID()
-                    .toString()
-                    .replace("-", "")
-                    .substring(0, 8)
-                    .toUpperCase();
-
-        } while (refundRepository.existsByRefundNumber(refundNumber));
-
-        return refundNumber;
     }
 
     private CustomerRefundResponse convertToResponse(

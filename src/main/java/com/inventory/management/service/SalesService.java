@@ -1,28 +1,23 @@
-
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.SalesItemRequest;
 import com.inventory.management.dto.request.SalesRequest;
 import com.inventory.management.dto.response.SalesItemResponse;
 import com.inventory.management.dto.response.SalesResponse;
-
 import com.inventory.management.entity.Customer;
 import com.inventory.management.entity.Product;
 import com.inventory.management.entity.Sales;
 import com.inventory.management.entity.SalesItem;
-
 import com.inventory.management.enums.SalesStatus;
 import com.inventory.management.enums.StockMovementType;
-
 import com.inventory.management.exception.CustomerNotFoundException;
 import com.inventory.management.exception.InvalidSalesOperationException;
 import com.inventory.management.exception.ProductNotFoundException;
 import com.inventory.management.exception.SalesNotFoundException;
-
 import com.inventory.management.repository.CustomerRepository;
 import com.inventory.management.repository.ProductRepository;
 import com.inventory.management.repository.SalesRepository;
-
+import com.inventory.management.util.BusinessCodeGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +26,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -71,14 +65,7 @@ public class SalesService {
         }
 
         Sales sales = new Sales();
-
-        sales.setSalesNumber(
-                "SO-" + UUID.randomUUID()
-                        .toString()
-                        .substring(0, 8)
-                        .toUpperCase()
-        );
-
+        sales.setSalesNumber(BusinessCodeGenerator.temporary());
         sales.setCustomer(customer);
         sales.setStatus(SalesStatus.DRAFT);
 
@@ -93,12 +80,12 @@ public class SalesService {
 
             if (!Boolean.TRUE.equals(product.getActive())) {
                 throw new InvalidSalesOperationException(
-                        "Cannot sell an inactive product: " + product.getProductName()
+                        "Cannot sell an inactive product: "
+                                + product.getProductName()
                 );
             }
 
             SalesItem item = new SalesItem();
-
             item.setSales(sales);
             item.setProduct(product);
             item.setProductCodeSnapshot(product.getProductCode());
@@ -113,14 +100,19 @@ public class SalesService {
             );
 
             item.setSubtotal(subtotal);
-
             sales.getItems().add(item);
             totalAmount = totalAmount.add(subtotal);
         }
 
         sales.setTotalAmount(totalAmount);
 
-        Sales savedSales = salesRepository.save(sales);
+        Sales savedSales = salesRepository.saveAndFlush(sales);
+
+        savedSales.setSalesNumber(
+                BusinessCodeGenerator.format("SO", savedSales.getId())
+        );
+
+        savedSales = salesRepository.saveAndFlush(savedSales);
 
         return convertToResponse(savedSales);
     }
@@ -137,9 +129,7 @@ public class SalesService {
     @Transactional(readOnly = true)
     public SalesResponse getSalesById(Long id) {
 
-        Sales sales = findSalesById(id);
-
-        return convertToResponse(sales);
+        return convertToResponse(findSalesById(id));
     }
 
     public SalesResponse completeSales(Long id) {
@@ -202,12 +192,9 @@ public class SalesService {
 
         for (Map.Entry<Product, Integer> entry : productQuantities.entrySet()) {
 
-            Product product = entry.getKey();
-            int quantity = entry.getValue();
-
             inventoryService.decreaseStock(
-                    product,
-                    quantity,
+                    entry.getKey(),
+                    entry.getValue(),
                     StockMovementType.SALE,
                     sales.getSalesNumber(),
                     "Sales completed"
@@ -235,9 +222,7 @@ public class SalesService {
 
         sales.setStatus(SalesStatus.CANCELLED);
 
-        Sales savedSales = salesRepository.save(sales);
-
-        return convertToResponse(savedSales);
+        return convertToResponse(salesRepository.save(sales));
     }
 
     public SalesResponse updateSales(Long id, SalesRequest request) {
@@ -262,7 +247,6 @@ public class SalesService {
         }
 
         BigDecimal totalAmount = BigDecimal.ZERO;
-
         List<SalesItem> newItems = new ArrayList<>();
 
         for (SalesItemRequest itemRequest : request.getItems()) {
@@ -274,12 +258,12 @@ public class SalesService {
 
             if (!Boolean.TRUE.equals(product.getActive())) {
                 throw new InvalidSalesOperationException(
-                        "Cannot sell an inactive product: " + product.getProductName()
+                        "Cannot sell an inactive product: "
+                                + product.getProductName()
                 );
             }
 
             SalesItem item = new SalesItem();
-
             item.setSales(sales);
             item.setProduct(product);
             item.setProductCodeSnapshot(product.getProductCode());
@@ -294,16 +278,13 @@ public class SalesService {
             );
 
             item.setSubtotal(subtotal);
-
             newItems.add(item);
             totalAmount = totalAmount.add(subtotal);
         }
 
         sales.setCustomer(customer);
-
         sales.getItems().clear();
         sales.getItems().addAll(newItems);
-
         sales.setTotalAmount(totalAmount);
 
         return convertToResponse(salesRepository.save(sales));

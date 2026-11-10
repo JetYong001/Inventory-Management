@@ -16,6 +16,10 @@ public final class BusinessCodeGenerator {
     }
 
     public static String format(String prefix, Long id) {
+        if (prefix == null || prefix.isBlank()) {
+            throw new IllegalArgumentException("Prefix is required");
+        }
+
         if (id == null || id <= 0) {
             throw new IllegalArgumentException("Invalid database ID");
         }

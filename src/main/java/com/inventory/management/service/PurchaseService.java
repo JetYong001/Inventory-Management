@@ -1,34 +1,29 @@
-
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.PurchaseItemRequest;
 import com.inventory.management.dto.request.PurchaseRequest;
 import com.inventory.management.dto.response.PurchaseItemResponse;
 import com.inventory.management.dto.response.PurchaseResponse;
-
 import com.inventory.management.entity.Product;
 import com.inventory.management.entity.Purchase;
 import com.inventory.management.entity.PurchaseItem;
 import com.inventory.management.entity.Supplier;
-
 import com.inventory.management.enums.PurchaseStatus;
 import com.inventory.management.enums.StockMovementType;
-
 import com.inventory.management.exception.InvalidPurchaseOperationException;
 import com.inventory.management.exception.ProductNotFoundException;
 import com.inventory.management.exception.PurchaseNotFoundException;
 import com.inventory.management.exception.SupplierNotFoundException;
-
 import com.inventory.management.repository.ProductRepository;
 import com.inventory.management.repository.PurchaseRepository;
 import com.inventory.management.repository.SupplierRepository;
-
+import com.inventory.management.util.BusinessCodeGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -51,8 +46,6 @@ public class PurchaseService {
         this.inventoryService = inventoryService;
     }
 
-    // CREATE PURCHASE
-
     public PurchaseResponse createPurchase(PurchaseRequest request) {
 
         Supplier supplier = supplierRepository.findById(request.getSupplierId())
@@ -67,14 +60,7 @@ public class PurchaseService {
         }
 
         Purchase purchase = new Purchase();
-
-        purchase.setPurchaseNumber(
-                "PO-" + UUID.randomUUID()
-                        .toString()
-                        .substring(0, 8)
-                        .toUpperCase()
-        );
-
+        purchase.setPurchaseNumber(BusinessCodeGenerator.temporary());
         purchase.setSupplier(supplier);
         purchase.setStatus(PurchaseStatus.DRAFT);
 
@@ -95,13 +81,10 @@ public class PurchaseService {
             }
 
             PurchaseItem item = new PurchaseItem();
-
             item.setPurchase(purchase);
             item.setProduct(product);
-
             item.setProductCodeSnapshot(product.getProductCode());
             item.setProductNameSnapshot(product.getProductName());
-
             item.setQuantity(itemRequest.getQuantity());
             item.setUnitCost(itemRequest.getUnitCost());
 
@@ -109,20 +92,22 @@ public class PurchaseService {
                     .multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
 
             item.setSubtotal(subtotal);
-
             purchase.getItems().add(item);
-
             totalAmount = totalAmount.add(subtotal);
         }
 
         purchase.setTotalAmount(totalAmount);
 
-        Purchase savedPurchase = purchaseRepository.save(purchase);
+        Purchase savedPurchase = purchaseRepository.saveAndFlush(purchase);
+
+        savedPurchase.setPurchaseNumber(
+                BusinessCodeGenerator.format("PO", savedPurchase.getId())
+        );
+
+        savedPurchase = purchaseRepository.saveAndFlush(savedPurchase);
 
         return convertToResponse(savedPurchase);
     }
-
-    // GET ALL PURCHASES
 
     @Transactional(readOnly = true)
     public List<PurchaseResponse> getAllPurchases() {
@@ -133,17 +118,11 @@ public class PurchaseService {
                 .toList();
     }
 
-    // GET PURCHASE BY ID
-
     @Transactional(readOnly = true)
     public PurchaseResponse getPurchaseById(Long id) {
 
-        Purchase purchase = findPurchaseById(id);
-
-        return convertToResponse(purchase);
+        return convertToResponse(findPurchaseById(id));
     }
-
-    // RECEIVE PURCHASE
 
     public PurchaseResponse receivePurchase(Long id) {
 
@@ -177,12 +156,8 @@ public class PurchaseService {
 
         purchase.setStatus(PurchaseStatus.RECEIVED);
 
-        Purchase savedPurchase = purchaseRepository.save(purchase);
-
-        return convertToResponse(savedPurchase);
+        return convertToResponse(purchaseRepository.save(purchase));
     }
-
-    // CANCEL PURCHASE
 
     public PurchaseResponse cancelPurchase(Long id) {
 
@@ -196,22 +171,9 @@ public class PurchaseService {
 
         purchase.setStatus(PurchaseStatus.CANCELLED);
 
-        Purchase savedPurchase = purchaseRepository.save(purchase);
-
-        return convertToResponse(savedPurchase);
+        return convertToResponse(purchaseRepository.save(purchase));
     }
 
-    // FIND PURCHASE
-
-    private Purchase findPurchaseById(Long id) {
-
-        return purchaseRepository.findById(id)
-                .orElseThrow(() -> new PurchaseNotFoundException(
-                        "Purchase not found with ID: " + id
-                ));
-    }
-
-    // UPDATE DRAFT PURCHASE
     public PurchaseResponse updatePurchase(Long id, PurchaseRequest request) {
 
         Purchase purchase = findPurchaseByIdForUpdate(id);
@@ -234,8 +196,7 @@ public class PurchaseService {
         }
 
         BigDecimal totalAmount = BigDecimal.ZERO;
-
-        List<PurchaseItem> newItems = new java.util.ArrayList<>();
+        List<PurchaseItem> newItems = new ArrayList<>();
 
         for (PurchaseItemRequest itemRequest : request.getItems()) {
 
@@ -252,13 +213,10 @@ public class PurchaseService {
             }
 
             PurchaseItem item = new PurchaseItem();
-
             item.setPurchase(purchase);
             item.setProduct(product);
-
             item.setProductCodeSnapshot(product.getProductCode());
             item.setProductNameSnapshot(product.getProductName());
-
             item.setQuantity(itemRequest.getQuantity());
             item.setUnitCost(itemRequest.getUnitCost());
 
@@ -266,22 +224,33 @@ public class PurchaseService {
                     .multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
 
             item.setSubtotal(subtotal);
-
             newItems.add(item);
             totalAmount = totalAmount.add(subtotal);
         }
 
         purchase.setSupplier(supplier);
-
         purchase.getItems().clear();
         purchase.getItems().addAll(newItems);
-
         purchase.setTotalAmount(totalAmount);
 
         return convertToResponse(purchaseRepository.save(purchase));
     }
 
-    // CONVERT TO RESPONSE
+    private Purchase findPurchaseById(Long id) {
+
+        return purchaseRepository.findById(id)
+                .orElseThrow(() -> new PurchaseNotFoundException(
+                        "Purchase not found with ID: " + id
+                ));
+    }
+
+    private Purchase findPurchaseByIdForUpdate(Long id) {
+
+        return purchaseRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new PurchaseNotFoundException(
+                        "Purchase not found with ID: " + id
+                ));
+    }
 
     private PurchaseResponse convertToResponse(Purchase purchase) {
 
@@ -317,12 +286,4 @@ public class PurchaseService {
 
         return response;
     }
-    private Purchase findPurchaseByIdForUpdate(Long id) {
-
-        return purchaseRepository.findByIdForUpdate(id)
-                .orElseThrow(() -> new PurchaseNotFoundException(
-                        "Purchase not found with ID: " + id
-                ));
-    }
-
 }

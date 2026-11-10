@@ -1,3 +1,4 @@
+
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.SupplierRefundRequest;
@@ -10,6 +11,7 @@ import com.inventory.management.exception.InsufficientCreditException;
 import com.inventory.management.repository.SupplierCreditTransactionRepository;
 import com.inventory.management.repository.SupplierRefundRepository;
 import com.inventory.management.repository.SupplierRepository;
+import com.inventory.management.util.BusinessCodeGenerator;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,7 +20,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -41,9 +42,7 @@ public class SupplierRefundService {
     }
 
     @Transactional
-    public SupplierRefundResponse createRefund(
-            SupplierRefundRequest request
-    ) {
+    public SupplierRefundResponse createRefund(SupplierRefundRequest request) {
 
         validateRequest(request);
 
@@ -75,7 +74,7 @@ public class SupplierRefundService {
 
         SupplierRefund refund = new SupplierRefund();
 
-        refund.setRefundNumber(generateRefundNumber());
+        refund.setRefundNumber(BusinessCodeGenerator.temporary());
         refund.setSupplier(supplier);
         refund.setAmount(refundAmount);
         refund.setPaymentMethod(request.getPaymentMethod());
@@ -84,6 +83,12 @@ public class SupplierRefundService {
 
         SupplierRefund savedRefund =
                 refundRepository.saveAndFlush(refund);
+
+        savedRefund.setRefundNumber(
+                BusinessCodeGenerator.format("SRF", savedRefund.getId())
+        );
+
+        savedRefund = refundRepository.saveAndFlush(savedRefund);
 
         SupplierCreditTransaction transaction =
                 new SupplierCreditTransaction();
@@ -187,26 +192,7 @@ public class SupplierRefundService {
         }
     }
 
-    private String generateRefundNumber() {
-
-        String refundNumber;
-
-        do {
-            refundNumber = "SREF-"
-                    + UUID.randomUUID()
-                    .toString()
-                    .replace("-", "")
-                    .substring(0, 12)
-                    .toUpperCase();
-
-        } while (refundRepository.existsByRefundNumber(refundNumber));
-
-        return refundNumber;
-    }
-
-    private SupplierRefundResponse convertToResponse(
-            SupplierRefund refund
-    ) {
+    private SupplierRefundResponse convertToResponse(SupplierRefund refund) {
 
         SupplierRefundResponse response =
                 new SupplierRefundResponse();

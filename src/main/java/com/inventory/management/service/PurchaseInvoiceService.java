@@ -1,28 +1,23 @@
-
 package com.inventory.management.service;
 
 import com.inventory.management.dto.response.PurchaseInvoiceItemResponse;
 import com.inventory.management.dto.response.PurchaseInvoiceResponse;
-
-import com.inventory.management.entity.Payment;
 import com.inventory.management.entity.Purchase;
 import com.inventory.management.entity.PurchaseInvoice;
 import com.inventory.management.entity.PurchaseInvoiceItem;
 import com.inventory.management.entity.PurchaseItem;
 import com.inventory.management.entity.Supplier;
 import com.inventory.management.entity.SupplierCreditTransaction;
-
 import com.inventory.management.enums.PurchaseInvoiceStatus;
 import com.inventory.management.enums.PurchaseStatus;
 import com.inventory.management.enums.SupplierCreditTransactionType;
-
 import com.inventory.management.exception.InvalidPurchaseOperationException;
 import com.inventory.management.exception.PurchaseNotFoundException;
-
 import com.inventory.management.repository.PaymentRepository;
 import com.inventory.management.repository.PurchaseInvoiceRepository;
 import com.inventory.management.repository.PurchaseRepository;
 import com.inventory.management.repository.SupplierCreditTransactionRepository;
+import com.inventory.management.util.BusinessCodeGenerator;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -76,7 +70,7 @@ public class PurchaseInvoiceService {
 
         PurchaseInvoice invoice = new PurchaseInvoice();
 
-        invoice.setInvoiceNumber(generateInvoiceNumber());
+        invoice.setInvoiceNumber(BusinessCodeGenerator.temporary());
         invoice.setPurchase(purchase);
         invoice.setInvoiceDate(LocalDate.now());
         invoice.setStatus(PurchaseInvoiceStatus.UNPAID);
@@ -93,7 +87,6 @@ public class PurchaseInvoiceService {
         for (PurchaseItem purchaseItem : purchase.getItems()) {
 
             PurchaseInvoiceItem invoiceItem = new PurchaseInvoiceItem();
-
             invoiceItem.setInvoice(invoice);
 
             String productCode = purchaseItem.getProductCodeSnapshot();
@@ -117,7 +110,13 @@ public class PurchaseInvoiceService {
         }
 
         PurchaseInvoice savedInvoice =
-                purchaseInvoiceRepository.save(invoice);
+                purchaseInvoiceRepository.saveAndFlush(invoice);
+
+        savedInvoice.setInvoiceNumber(
+                BusinessCodeGenerator.format("PINV", savedInvoice.getId())
+        );
+
+        savedInvoice = purchaseInvoiceRepository.save(savedInvoice);
 
         return convertToResponse(savedInvoice);
     }
@@ -217,9 +216,7 @@ public class PurchaseInvoiceService {
 
         boolean hasPayment = totalPaid.compareTo(BigDecimal.ZERO) > 0;
         boolean hasCredit = totalCreditApplied.compareTo(BigDecimal.ZERO) > 0;
-
-        boolean fullySettled =
-                outstanding.compareTo(BigDecimal.ZERO) <= 0;
+        boolean fullySettled = outstanding.compareTo(BigDecimal.ZERO) <= 0;
 
         if (fullySettled) {
 
@@ -249,31 +246,10 @@ public class PurchaseInvoiceService {
         return PurchaseInvoiceStatus.UNPAID;
     }
 
-    private String generateInvoiceNumber() {
-
-        String invoiceNumber;
-
-        do {
-            String randomCode = UUID.randomUUID()
-                    .toString()
-                    .substring(0, 8)
-                    .toUpperCase();
-
-            invoiceNumber = "PINV-"
-                    + LocalDate.now().getYear()
-                    + "-"
-                    + randomCode;
-
-        } while (purchaseInvoiceRepository.existsByInvoiceNumber(invoiceNumber));
-
-        return invoiceNumber;
-    }
-
     private PurchaseInvoiceResponse convertToResponse(
             PurchaseInvoice invoice) {
 
-        PurchaseInvoiceResponse response =
-                new PurchaseInvoiceResponse();
+        PurchaseInvoiceResponse response = new PurchaseInvoiceResponse();
 
         response.setId(invoice.getId());
         response.setInvoiceNumber(invoice.getInvoiceNumber());
@@ -327,12 +303,8 @@ public class PurchaseInvoiceService {
                                     new PurchaseInvoiceItemResponse();
 
                             itemResponse.setId(item.getId());
-                            itemResponse.setProductCode(
-                                    item.getProductCode()
-                            );
-                            itemResponse.setProductName(
-                                    item.getProductName()
-                            );
+                            itemResponse.setProductCode(item.getProductCode());
+                            itemResponse.setProductName(item.getProductName());
                             itemResponse.setQuantity(item.getQuantity());
                             itemResponse.setUnitCost(item.getUnitCost());
                             itemResponse.setSubtotal(item.getSubtotal());

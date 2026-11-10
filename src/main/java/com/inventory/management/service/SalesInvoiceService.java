@@ -12,14 +12,13 @@ import com.inventory.management.exception.InvalidSalesOperationException;
 import com.inventory.management.exception.SalesInvoiceNotFoundException;
 import com.inventory.management.repository.SalesInvoiceRepository;
 import com.inventory.management.repository.SalesRepository;
+import com.inventory.management.util.BusinessCodeGenerator;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class SalesInvoiceService {
@@ -34,7 +33,6 @@ public class SalesInvoiceService {
         this.salesRepository = salesRepository;
     }
 
-    // Generate invoice from completed sales
     @Transactional
     public SalesInvoiceResponse createInvoiceFromSales(Long salesId) {
 
@@ -60,19 +58,17 @@ public class SalesInvoiceService {
 
         SalesInvoice invoice = new SalesInvoice();
 
-        invoice.setInvoiceNumber(generateInvoiceNumber());
+        invoice.setInvoiceNumber(BusinessCodeGenerator.temporary());
         invoice.setSales(sales);
         invoice.setTotalAmount(sales.getTotalAmount());
         invoice.setStatus(SalesInvoiceStatus.UNPAID);
 
-        // Save customer information as invoice snapshots
         invoice.setCustomerCode(customer.getCustomerCode());
         invoice.setCustomerName(customer.getCustomerName());
         invoice.setCustomerPhone(customer.getPhone());
         invoice.setCustomerEmail(customer.getEmail());
         invoice.setCustomerAddress(customer.getAddress());
 
-        // Copy sales items into invoice items
         List<SalesInvoiceItem> invoiceItems = new ArrayList<>();
 
         for (SalesItem salesItem : sales.getItems()) {
@@ -82,7 +78,6 @@ public class SalesInvoiceService {
             String productCode = salesItem.getProductCodeSnapshot();
             String productName = salesItem.getProductNameSnapshot();
 
-            // Fallback for sales records created before snapshot fields existed
             if (productCode == null || productName == null) {
                 productCode = salesItem.getProduct().getProductCode();
                 productName = salesItem.getProduct().getProductName();
@@ -100,12 +95,18 @@ public class SalesInvoiceService {
 
         invoice.setItems(invoiceItems);
 
-        SalesInvoice savedInvoice = salesInvoiceRepository.save(invoice);
+        SalesInvoice savedInvoice =
+                salesInvoiceRepository.saveAndFlush(invoice);
+
+        savedInvoice.setInvoiceNumber(
+                BusinessCodeGenerator.format("SINV", savedInvoice.getId())
+        );
+
+        savedInvoice = salesInvoiceRepository.save(savedInvoice);
 
         return convertToResponse(savedInvoice);
     }
 
-    // Get all invoices
     @Transactional(readOnly = true)
     public List<SalesInvoiceResponse> getAllInvoices() {
 
@@ -115,7 +116,6 @@ public class SalesInvoiceService {
                 .toList();
     }
 
-    // Get invoice by database ID
     @Transactional(readOnly = true)
     public SalesInvoiceResponse getInvoiceById(Long invoiceId) {
 
@@ -128,7 +128,6 @@ public class SalesInvoiceService {
         return convertToResponse(invoice);
     }
 
-    // Get invoice by related sales ID
     @Transactional(readOnly = true)
     public SalesInvoiceResponse getInvoiceBySalesId(Long salesId) {
 
@@ -139,26 +138,6 @@ public class SalesInvoiceService {
                         ));
 
         return convertToResponse(invoice);
-    }
-
-    private String generateInvoiceNumber() {
-
-        int year = LocalDate.now().getYear();
-
-        String invoiceNumber;
-
-        do {
-            String suffix = UUID.randomUUID()
-                    .toString()
-                    .replace("-", "")
-                    .substring(0, 8)
-                    .toUpperCase();
-
-            invoiceNumber = "INV-" + year + "-" + suffix;
-
-        } while (salesInvoiceRepository.existsByInvoiceNumber(invoiceNumber));
-
-        return invoiceNumber;
     }
 
     private SalesInvoiceResponse convertToResponse(SalesInvoice invoice) {
