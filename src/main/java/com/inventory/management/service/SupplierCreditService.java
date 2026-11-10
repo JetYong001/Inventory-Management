@@ -29,6 +29,8 @@ import java.util.UUID;
 @Service
 public class SupplierCreditService {
 
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
+
     private final SupplierRepository supplierRepository;
     private final PurchaseInvoiceRepository purchaseInvoiceRepository;
     private final SupplierCreditTransactionRepository transactionRepository;
@@ -46,8 +48,13 @@ public class SupplierCreditService {
         this.paymentRepository = paymentRepository;
     }
 
+    // =========================
+    // SUPPLIER CREDIT BALANCE
+    // =========================
+
     @Transactional(readOnly = true)
-    public SupplierCreditBalanceResponse getSupplierCreditBalance(Long supplierId) {
+    public SupplierCreditBalanceResponse getSupplierCreditBalance(
+            Long supplierId) {
 
         Supplier supplier = supplierRepository.findById(supplierId)
                 .orElseThrow(() ->
@@ -70,7 +77,8 @@ public class SupplierCreditService {
                 SupplierCreditTransactionType.REFUND
         );
 
-        BigDecimal availableBalance = calculateAvailableBalance(transactions);
+        BigDecimal availableBalance =
+                calculateAvailableBalance(transactions);
 
         SupplierCreditBalanceResponse response =
                 new SupplierCreditBalanceResponse();
@@ -92,14 +100,33 @@ public class SupplierCreditService {
         return response;
     }
 
+    // =========================
+    // APPLY SUPPLIER CREDIT
+    // =========================
+
     @Transactional
     public SupplierCreditApplicationResponse applySupplierCredit(
             SupplierCreditApplicationRequest request) {
 
-        if (request.getAmount() == null
-                || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+        if (request == null) {
+            throw new IllegalArgumentException(
+                    "Supplier credit application request is required"
+            );
+        }
+
+        BigDecimal amount = request.getAmount();
+
+        if (amount == null || amount.compareTo(ZERO) <= 0) {
             throw new IllegalArgumentException(
                     "Application amount must be greater than zero"
+            );
+        }
+
+        if (amount.scale() > 2
+                || amount.precision() - amount.scale() > 10) {
+            throw new IllegalArgumentException(
+                    "Application amount supports up to 10 integer digits "
+                            + "and 2 decimal places"
             );
         }
 
@@ -131,8 +158,6 @@ public class SupplierCreditService {
         BigDecimal availableBalance =
                 calculateAvailableBalance(supplierTransactions);
 
-        BigDecimal amount = request.getAmount();
-
         if (amount.compareTo(availableBalance) > 0) {
             throw new IllegalArgumentException(
                     "Insufficient supplier credit balance"
@@ -143,7 +168,7 @@ public class SupplierCreditService {
                 .getTotalPurchaseInvoicePayments(invoice.getId());
 
         if (paidAmount == null) {
-            paidAmount = BigDecimal.ZERO;
+            paidAmount = ZERO;
         }
 
         List<SupplierCreditTransaction> invoiceTransactions =
@@ -159,8 +184,8 @@ public class SupplierCreditService {
                 .subtract(paidAmount)
                 .subtract(netAppliedCredit);
 
-        if (outstandingBalance.compareTo(BigDecimal.ZERO) < 0) {
-            outstandingBalance = BigDecimal.ZERO;
+        if (outstandingBalance.compareTo(ZERO) < 0) {
+            outstandingBalance = ZERO;
         }
 
         if (amount.compareTo(outstandingBalance) > 0) {
@@ -221,6 +246,10 @@ public class SupplierCreditService {
         return response;
     }
 
+    // =========================
+    // REVERSE SUPPLIER CREDIT
+    // =========================
+
     @Transactional
     public SupplierCreditReversalResponse reverseSupplierCreditApplication(
             Long transactionId,
@@ -241,7 +270,9 @@ public class SupplierCreditService {
             );
         }
 
-        if (transactionRepository.existsByReversedTransaction_Id(transactionId)) {
+        if (transactionRepository.existsByReversedTransaction_Id(
+                transactionId)) {
+
             throw new IllegalArgumentException(
                     "This credit application has already been reversed"
             );
@@ -280,7 +311,7 @@ public class SupplierCreditService {
         BigDecimal reversedAmount =
                 originalTransaction.getAmount().abs();
 
-        if (reversedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+        if (reversedAmount.compareTo(ZERO) <= 0) {
             throw new IllegalArgumentException(
                     "Original application amount must be greater than zero"
             );
@@ -298,7 +329,7 @@ public class SupplierCreditService {
                 .getTotalPurchaseInvoicePayments(invoice.getId());
 
         if (paidAmount == null) {
-            paidAmount = BigDecimal.ZERO;
+            paidAmount = ZERO;
         }
 
         List<SupplierCreditTransaction> invoiceTransactions =
@@ -323,8 +354,8 @@ public class SupplierCreditService {
                 .subtract(paidAmount)
                 .subtract(updatedAppliedCredit);
 
-        if (updatedOutstanding.compareTo(BigDecimal.ZERO) < 0) {
-            updatedOutstanding = BigDecimal.ZERO;
+        if (updatedOutstanding.compareTo(ZERO) < 0) {
+            updatedOutstanding = ZERO;
         }
 
         SupplierCreditTransaction reversalTransaction =
@@ -382,12 +413,16 @@ public class SupplierCreditService {
         return response;
     }
 
+    // =========================
+    // CREDIT CALCULATIONS
+    // =========================
+
     private BigDecimal calculateAvailableBalance(
             List<SupplierCreditTransaction> transactions) {
 
         return transactions.stream()
                 .map(SupplierCreditTransaction::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(ZERO, BigDecimal::add);
     }
 
     private BigDecimal calculateTotal(
@@ -397,7 +432,7 @@ public class SupplierCreditService {
         return transactions.stream()
                 .filter(t -> t.getTransactionType() == type)
                 .map(t -> t.getAmount().abs())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(ZERO, BigDecimal::add);
     }
 
     private BigDecimal calculateNetAppliedCredit(
@@ -416,6 +451,10 @@ public class SupplierCreditService {
         return applied.subtract(reversed);
     }
 
+    // =========================
+    // INVOICE STATUS
+    // =========================
+
     private void updateInvoiceStatus(
             PurchaseInvoice invoice,
             BigDecimal paidAmount,
@@ -424,34 +463,38 @@ public class SupplierCreditService {
 
         BigDecimal totalAmount = invoice.getTotalAmount();
 
-        if (outstandingBalance.compareTo(BigDecimal.ZERO) == 0) {
+        if (outstandingBalance.compareTo(ZERO) == 0) {
 
             if (paidAmount.compareTo(totalAmount) >= 0) {
                 invoice.setStatus(PurchaseInvoiceStatus.PAID);
 
             } else if (appliedCredit.compareTo(totalAmount) >= 0
-                    && paidAmount.compareTo(BigDecimal.ZERO) == 0) {
+                    && paidAmount.compareTo(ZERO) == 0) {
                 invoice.setStatus(PurchaseInvoiceStatus.CREDITED);
 
             } else {
                 invoice.setStatus(PurchaseInvoiceStatus.SETTLED);
             }
 
-        } else if (paidAmount.compareTo(BigDecimal.ZERO) > 0
-                && appliedCredit.compareTo(BigDecimal.ZERO) > 0) {
+        } else if (paidAmount.compareTo(ZERO) > 0
+                && appliedCredit.compareTo(ZERO) > 0) {
 
             invoice.setStatus(PurchaseInvoiceStatus.PARTIALLY_SETTLED);
 
-        } else if (paidAmount.compareTo(BigDecimal.ZERO) > 0) {
+        } else if (paidAmount.compareTo(ZERO) > 0) {
             invoice.setStatus(PurchaseInvoiceStatus.PARTIALLY_PAID);
 
-        } else if (appliedCredit.compareTo(BigDecimal.ZERO) > 0) {
+        } else if (appliedCredit.compareTo(ZERO) > 0) {
             invoice.setStatus(PurchaseInvoiceStatus.PARTIALLY_CREDITED);
 
         } else {
             invoice.setStatus(PurchaseInvoiceStatus.UNPAID);
         }
     }
+
+    // =========================
+    // RESPONSE MAPPING
+    // =========================
 
     private SupplierCreditTransactionResponse convertToTransactionResponse(
             SupplierCreditTransaction transaction) {

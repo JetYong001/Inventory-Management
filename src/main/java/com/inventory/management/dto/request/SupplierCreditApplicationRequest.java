@@ -1,6 +1,8 @@
+
 package com.inventory.management.dto.request;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -15,7 +17,12 @@ public class SupplierCreditApplicationRequest {
     private Long purchaseInvoiceId;
 
     @NotNull
-    @DecimalMin(value = "0.01")
+    @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
+    @Digits(
+            integer = 10,
+            fraction = 2,
+            message = "Amount supports up to 10 integer digits and 2 decimal places"
+    )
     private BigDecimal amount;
 
     @Size(max = 500)
