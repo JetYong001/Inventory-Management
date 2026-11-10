@@ -43,6 +43,8 @@ import java.util.UUID;
 @Transactional
 public class SalesReturnService {
 
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
+
     private static final List<CustomerCreditTransactionType> APPLIED_TYPES =
             List.of(
                     CustomerCreditTransactionType.CREDIT_APPLIED,
@@ -81,22 +83,17 @@ public class SalesReturnService {
         this.inventoryService = inventoryService;
     }
 
-    public SalesReturnResponse createSalesReturn(SalesReturnRequest request) {
+    public SalesReturnResponse createSalesReturn(
+            SalesReturnRequest request
+    ) {
 
-        if (request == null || request.getSalesId() == null) {
-            throw new IllegalArgumentException("Sales ID is required");
-        }
+        validateRequest(request);
 
-        if (request.getItems() == null || request.getItems().isEmpty()) {
-            throw new IllegalArgumentException(
-                    "At least one return item is required"
-            );
-        }
-
-        Sales sales = salesRepository.findByIdForUpdate(request.getSalesId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException("Sales not found")
-                );
+        Sales sales = salesRepository.findByIdForUpdate(
+                request.getSalesId()
+        ).orElseThrow(() ->
+                new IllegalArgumentException("Sales not found")
+        );
 
         if (sales.getStatus() != SalesStatus.COMPLETED) {
             throw new IllegalArgumentException(
@@ -135,26 +132,32 @@ public class SalesReturnService {
         salesReturn.setSales(sales);
         salesReturn.setSalesInvoice(salesInvoice);
         salesReturn.setReturnDate(LocalDateTime.now());
-        salesReturn.setReason(request.getReason());
+        salesReturn.setReason(request.getReason().trim());
 
-        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal totalAmount = ZERO;
 
         for (SalesReturnItemRequest itemRequest : request.getItems()) {
 
-            if (itemRequest.getSalesItemId() == null) {
+            if (itemRequest == null) {
                 throw new IllegalArgumentException(
-                        "Sales item ID is required"
-                );
-            }
-
-            if (itemRequest.getQuantity() == null
-                    || itemRequest.getQuantity() <= 0) {
-                throw new IllegalArgumentException(
-                        "Return quantity must be greater than zero"
+                        "Sales return item cannot be null"
                 );
             }
 
             Long salesItemId = itemRequest.getSalesItemId();
+            Integer returnQuantity = itemRequest.getQuantity();
+
+            if (salesItemId == null || salesItemId <= 0) {
+                throw new IllegalArgumentException(
+                        "Valid sales item ID is required"
+                );
+            }
+
+            if (returnQuantity == null || returnQuantity <= 0) {
+                throw new IllegalArgumentException(
+                        "Return quantity must be greater than zero"
+                );
+            }
 
             if (!processedSalesItemIds.add(salesItemId)) {
                 throw new IllegalArgumentException(
@@ -162,12 +165,29 @@ public class SalesReturnService {
                 );
             }
 
-            SalesItem salesItem = sales.getItems().stream()
-                    .filter(item -> item.getId().equals(salesItemId))
+            SalesItem salesItem = sales.getItems()
+                    .stream()
+                    .filter(item ->
+                            item.getId() != null
+                                    && item.getId().equals(salesItemId)
+                    )
                     .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Sales item does not belong to this sales order"
                     ));
+
+            if (salesItem.getProduct() == null) {
+                throw new IllegalStateException(
+                        "Product is missing from sales item: " + salesItemId
+                );
+            }
+
+            if (salesItem.getQuantity() == null
+                    || salesItem.getQuantity() <= 0) {
+                throw new IllegalStateException(
+                        "Original sales item quantity is invalid"
+                );
+            }
 
             Long previouslyReturned =
                     salesReturnItemRepository.getReturnedQuantity(salesItemId);
@@ -176,7 +196,7 @@ public class SalesReturnService {
                     previouslyReturned == null ? 0 : previouslyReturned;
 
             long requestedTotal =
-                    returnedQuantity + itemRequest.getQuantity();
+                    returnedQuantity + returnQuantity;
 
             if (requestedTotal > salesItem.getQuantity()) {
                 throw new IllegalArgumentException(
@@ -185,24 +205,26 @@ public class SalesReturnService {
                 );
             }
 
-            if (salesItem.getUnitPrice() == null) {
+            if (salesItem.getUnitPrice() == null
+                    || salesItem.getUnitPrice().compareTo(ZERO) < 0) {
                 throw new IllegalStateException(
-                        "Original sales item unit price is missing"
+                        "Original sales item unit price is invalid"
                 );
             }
 
             BigDecimal unitPrice = salesItem.getUnitPrice();
 
             BigDecimal subtotal = unitPrice.multiply(
-                    BigDecimal.valueOf(itemRequest.getQuantity())
+                    BigDecimal.valueOf(returnQuantity)
             );
 
             SalesReturnItem returnItem = new SalesReturnItem();
+
             returnItem.setSalesReturn(salesReturn);
             returnItem.setSalesItem(salesItem);
             returnItem.setProductCode(salesItem.getProductCodeSnapshot());
             returnItem.setProductName(salesItem.getProductNameSnapshot());
-            returnItem.setQuantity(itemRequest.getQuantity());
+            returnItem.setQuantity(returnQuantity);
             returnItem.setUnitPrice(unitPrice);
             returnItem.setSubtotal(subtotal);
 
@@ -210,7 +232,7 @@ public class SalesReturnService {
 
             inventoryService.increaseStock(
                     salesItem.getProduct(),
-                    itemRequest.getQuantity(),
+                    returnQuantity,
                     StockMovementType.SALES_RETURN,
                     salesReturn.getReturnNumber(),
                     "Sales return"
@@ -236,15 +258,16 @@ public class SalesReturnService {
 
         BigDecimal unpaidBeforeCredit = safeAmount(
                 salesInvoice.getTotalAmount()
-        ).subtract(paidAmount).max(BigDecimal.ZERO);
+        ).subtract(paidAmount).max(ZERO);
 
         BigDecimal remainingUnpaid = unpaidBeforeCredit
                 .subtract(previousApplied)
-                .max(BigDecimal.ZERO);
+                .max(ZERO);
 
         BigDecimal currentApplied = totalAmount.min(remainingUnpaid);
 
         SalesCreditNote creditNote = new SalesCreditNote();
+
         creditNote.setCreditNoteNumber(generateCreditNoteNumber());
         creditNote.setSalesReturn(savedReturn);
         creditNote.setSalesInvoice(salesInvoice);
@@ -264,7 +287,7 @@ public class SalesReturnService {
                 "Sales credit note issued"
         );
 
-        if (currentApplied.compareTo(BigDecimal.ZERO) > 0) {
+        if (currentApplied.compareTo(ZERO) > 0) {
 
             createCreditTransaction(
                     customer,
@@ -282,6 +305,40 @@ public class SalesReturnService {
         return convertToResponse(savedReturn);
     }
 
+    private void validateRequest(SalesReturnRequest request) {
+
+        if (request == null) {
+            throw new IllegalArgumentException(
+                    "Sales return request is required"
+            );
+        }
+
+        if (request.getSalesId() == null || request.getSalesId() <= 0) {
+            throw new IllegalArgumentException(
+                    "Valid sales ID is required"
+            );
+        }
+
+        if (request.getReason() == null
+                || request.getReason().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Return reason is required"
+            );
+        }
+
+        if (request.getReason().length() > 500) {
+            throw new IllegalArgumentException(
+                    "Return reason cannot exceed 500 characters"
+            );
+        }
+
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "At least one return item is required"
+            );
+        }
+    }
+
     private BigDecimal getNetAppliedCredit(Long invoiceId) {
 
         BigDecimal amount =
@@ -291,7 +348,7 @@ public class SalesReturnService {
                                 APPLIED_TYPES
                         );
 
-        return safeAmount(amount);
+        return safeAmount(amount).max(ZERO);
     }
 
     private void createCreditTransaction(
@@ -333,7 +390,7 @@ public class SalesReturnService {
         BigDecimal remaining = total
                 .subtract(paid)
                 .subtract(appliedCredit)
-                .max(BigDecimal.ZERO);
+                .max(ZERO);
 
         invoice.setStatus(
                 determineStatus(total, paid, appliedCredit, remaining)
@@ -349,18 +406,18 @@ public class SalesReturnService {
             BigDecimal remaining
     ) {
 
-        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+        if (remaining.compareTo(ZERO) > 0) {
 
-            if (paid.compareTo(BigDecimal.ZERO) > 0
-                    && credit.compareTo(BigDecimal.ZERO) > 0) {
+            if (paid.compareTo(ZERO) > 0
+                    && credit.compareTo(ZERO) > 0) {
                 return SalesInvoiceStatus.PARTIALLY_SETTLED;
             }
 
-            if (paid.compareTo(BigDecimal.ZERO) > 0) {
+            if (paid.compareTo(ZERO) > 0) {
                 return SalesInvoiceStatus.PARTIALLY_PAID;
             }
 
-            if (credit.compareTo(BigDecimal.ZERO) > 0) {
+            if (credit.compareTo(ZERO) > 0) {
                 return SalesInvoiceStatus.PARTIALLY_CREDITED;
             }
 
@@ -379,11 +436,17 @@ public class SalesReturnService {
     }
 
     private BigDecimal safeAmount(BigDecimal amount) {
-        return amount == null ? BigDecimal.ZERO : amount;
+        return amount == null ? ZERO : amount;
     }
 
     @Transactional(readOnly = true)
     public SalesReturnResponse getSalesReturnById(Long id) {
+
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException(
+                    "Valid sales return ID is required"
+            );
+        }
 
         SalesReturn salesReturn = salesReturnRepository.findById(id)
                 .orElseThrow(() ->
@@ -395,6 +458,12 @@ public class SalesReturnService {
 
     @Transactional(readOnly = true)
     public List<SalesReturnResponse> getSalesReturnsBySalesId(Long salesId) {
+
+        if (salesId == null || salesId <= 0) {
+            throw new IllegalArgumentException(
+                    "Valid sales ID is required"
+            );
+        }
 
         return salesReturnRepository
                 .findBySales_IdOrderByReturnDateDesc(salesId)
@@ -447,19 +516,25 @@ public class SalesReturnService {
 
     private String generateReturnNumber() {
 
-        return "SRT-" + LocalDateTime.now().getYear() + "-"
+        return "SRT-"
+                + LocalDateTime.now().getYear()
+                + "-"
                 + UUID.randomUUID()
                 .toString()
                 .replace("-", "")
-                .substring(0, 12);
+                .substring(0, 12)
+                .toUpperCase();
     }
 
     private String generateCreditNoteNumber() {
 
-        return "SCN-" + LocalDateTime.now().getYear() + "-"
+        return "SCN-"
+                + LocalDateTime.now().getYear()
+                + "-"
                 + UUID.randomUUID()
                 .toString()
                 .replace("-", "")
-                .substring(0, 12);
+                .substring(0, 12)
+                .toUpperCase();
     }
 }

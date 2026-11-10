@@ -1,28 +1,34 @@
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.CategoryRequest;
+import com.inventory.management.dto.response.CategoryDetailResponse;
+import com.inventory.management.dto.response.CategoryProductResponse;
 import com.inventory.management.dto.response.CategoryResponse;
 import com.inventory.management.entity.Category;
 import com.inventory.management.exception.CategoryNotFoundException;
 import com.inventory.management.repository.CategoryRepository;
-import com.inventory.management.dto.response.CategoryDetailResponse;
-import com.inventory.management.dto.response.CategoryProductResponse;
-import org.springframework.transaction.annotation.Transactional;
+import com.inventory.management.repository.ProductRepository;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
 
-    public CategoryService(CategoryRepository categoryRepository) {
+    public CategoryService(
+            CategoryRepository categoryRepository,
+            ProductRepository productRepository
+    ) {
         this.categoryRepository = categoryRepository;
+        this.productRepository = productRepository;
     }
 
-    // Create Category
     public CategoryResponse createCategory(CategoryRequest request) {
 
         if (categoryRepository.existsByCategoryNameIgnoreCase(
@@ -34,16 +40,13 @@ public class CategoryService {
         }
 
         Category category = new Category();
-
-        category.setCategoryName(request.getCategoryName());
+        category.setCategoryName(request.getCategoryName().trim());
         category.setDescription(request.getDescription());
 
-        Category savedCategory = categoryRepository.save(category);
-
-        return convertToResponse(savedCategory);
+        return convertToResponse(categoryRepository.save(category));
     }
 
-    // Get All Categories
+    @Transactional(readOnly = true)
     public List<CategoryResponse> getAllCategories() {
 
         return categoryRepository.findAll()
@@ -52,15 +55,12 @@ public class CategoryService {
                 .toList();
     }
 
-    // Get Category by ID
+    @Transactional(readOnly = true)
     public CategoryResponse getCategoryById(Long id) {
 
-        Category category = findCategoryById(id);
-
-        return convertToResponse(category);
+        return convertToResponse(findCategoryById(id));
     }
 
-    // Update Category
     public CategoryResponse updateCategory(
             Long id,
             CategoryRequest request
@@ -68,54 +68,35 @@ public class CategoryService {
 
         Category category = findCategoryById(id);
 
-        boolean duplicate = categoryRepository.existsByCategoryNameIgnoreCase(
-                request.getCategoryName()
-        );
+        String newName = request.getCategoryName().trim();
 
-        if (duplicate && !category.getCategoryName().equalsIgnoreCase(
-                request.getCategoryName()
-        )) {
+        boolean duplicate =
+                categoryRepository.existsByCategoryNameIgnoreCase(newName);
+
+        if (duplicate && !category.getCategoryName().equalsIgnoreCase(newName)) {
             throw new IllegalArgumentException(
-                    "Category already exists: " + request.getCategoryName()
+                    "Category already exists: " + newName
             );
         }
 
-        category.setCategoryName(request.getCategoryName());
+        category.setCategoryName(newName);
         category.setDescription(request.getDescription());
 
-        Category updatedCategory = categoryRepository.save(category);
-
-        return convertToResponse(updatedCategory);
+        return convertToResponse(categoryRepository.save(category));
     }
 
-    // Delete Category
     public void deleteCategory(Long id) {
 
         Category category = findCategoryById(id);
 
+        if (productRepository.existsByCategory_Id(id)) {
+            throw new IllegalArgumentException(
+                    "Cannot delete this category because products are using it. "
+                            + "Move those products to another category first."
+            );
+        }
+
         categoryRepository.delete(category);
-    }
-
-    // Find Category
-    private Category findCategoryById(Long id) {
-
-        return categoryRepository.findById(id)
-                .orElseThrow(() -> new CategoryNotFoundException(
-                        "Category not found with ID: " + id
-                ));
-    }
-
-    // Convert Entity to Response DTO
-    private CategoryResponse convertToResponse(Category category) {
-
-        CategoryResponse response = new CategoryResponse();
-
-        response.setId(category.getId());
-        response.setCategoryName(category.getCategoryName());
-        response.setDescription(category.getDescription());
-        response.setCreatedAt(category.getCreatedAt());
-
-        return response;
     }
 
     @Transactional(readOnly = true)
@@ -137,18 +118,14 @@ public class CategoryService {
                         .stream()
                         .map(product -> {
 
-                            CategoryProductResponse productResponse =
+                            CategoryProductResponse item =
                                     new CategoryProductResponse();
 
-                            productResponse.setId(product.getId());
-                            productResponse.setProductCode(
-                                    product.getProductCode()
-                            );
-                            productResponse.setProductName(
-                                    product.getProductName()
-                            );
+                            item.setId(product.getId());
+                            item.setProductCode(product.getProductCode());
+                            item.setProductName(product.getProductName());
 
-                            return productResponse;
+                            return item;
                         })
                         .toList();
 
@@ -157,4 +134,29 @@ public class CategoryService {
         return response;
     }
 
+    private Category findCategoryById(Long id) {
+
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException(
+                    "Valid category ID is required"
+            );
+        }
+
+        return categoryRepository.findById(id)
+                .orElseThrow(() -> new CategoryNotFoundException(
+                        "Category not found with ID: " + id
+                ));
+    }
+
+    private CategoryResponse convertToResponse(Category category) {
+
+        CategoryResponse response = new CategoryResponse();
+
+        response.setId(category.getId());
+        response.setCategoryName(category.getCategoryName());
+        response.setDescription(category.getDescription());
+        response.setCreatedAt(category.getCreatedAt());
+
+        return response;
+    }
 }

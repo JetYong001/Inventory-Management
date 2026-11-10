@@ -6,21 +6,25 @@ import com.inventory.management.entity.Supplier;
 import com.inventory.management.entity.SupplierCreditTransaction;
 import com.inventory.management.entity.SupplierRefund;
 import com.inventory.management.enums.SupplierCreditTransactionType;
+import com.inventory.management.exception.InsufficientCreditException;
 import com.inventory.management.repository.SupplierCreditTransactionRepository;
 import com.inventory.management.repository.SupplierRefundRepository;
 import com.inventory.management.repository.SupplierRepository;
 
-import jakarta.persistence.EntityNotFoundException;
-
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class SupplierRefundService {
+
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
 
     private final SupplierRepository supplierRepository;
     private final SupplierRefundRepository refundRepository;
@@ -29,27 +33,26 @@ public class SupplierRefundService {
     public SupplierRefundService(
             SupplierRepository supplierRepository,
             SupplierRefundRepository refundRepository,
-            SupplierCreditTransactionRepository transactionRepository) {
-
+            SupplierCreditTransactionRepository transactionRepository
+    ) {
         this.supplierRepository = supplierRepository;
         this.refundRepository = refundRepository;
         this.transactionRepository = transactionRepository;
     }
 
     @Transactional
-    public SupplierRefundResponse createRefund(SupplierRefundRequest request) {
+    public SupplierRefundResponse createRefund(
+            SupplierRefundRequest request
+    ) {
 
-        if (request.getAmount() == null
-                || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException(
-                    "Refund amount must be greater than zero"
-            );
-        }
+        validateRequest(request);
 
         Supplier supplier = supplierRepository
                 .findByIdForUpdate(request.getSupplierId())
-                .orElseThrow(() ->
-                        new EntityNotFoundException("Supplier not found"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Supplier not found"
+                ));
 
         List<SupplierCreditTransaction> transactions =
                 transactionRepository.findBySupplierIdOrderByCreatedAtDesc(
@@ -58,11 +61,15 @@ public class SupplierRefundService {
 
         BigDecimal availableBalance = transactions.stream()
                 .map(SupplierCreditTransaction::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .filter(amount -> amount != null)
+                .reduce(ZERO, BigDecimal::add);
 
-        if (request.getAmount().compareTo(availableBalance) > 0) {
-            throw new IllegalArgumentException(
-                    "Refund amount exceeds available supplier credit"
+        BigDecimal refundAmount = request.getAmount();
+
+        if (availableBalance.compareTo(refundAmount) < 0) {
+            throw new InsufficientCreditException(
+                    "Insufficient supplier credit balance. Available: "
+                            + availableBalance
             );
         }
 
@@ -70,12 +77,13 @@ public class SupplierRefundService {
 
         refund.setRefundNumber(generateRefundNumber());
         refund.setSupplier(supplier);
-        refund.setAmount(request.getAmount());
+        refund.setAmount(refundAmount);
         refund.setPaymentMethod(request.getPaymentMethod());
         refund.setReferenceNumber(request.getReferenceNumber());
         refund.setRemarks(request.getRemarks());
 
-        refund = refundRepository.saveAndFlush(refund);
+        SupplierRefund savedRefund =
+                refundRepository.saveAndFlush(refund);
 
         SupplierCreditTransaction transaction =
                 new SupplierCreditTransaction();
@@ -84,23 +92,33 @@ public class SupplierRefundService {
         transaction.setTransactionType(
                 SupplierCreditTransactionType.REFUND
         );
-        transaction.setAmount(request.getAmount().negate());
-        transaction.setReferenceNumber(refund.getRefundNumber());
+        transaction.setAmount(refundAmount.negate());
+        transaction.setReferenceNumber(savedRefund.getRefundNumber());
         transaction.setRemarks(
-                "Supplier refund - " + refund.getRefundNumber()
+                "Supplier refund - " + savedRefund.getRefundNumber()
         );
 
         transactionRepository.save(transaction);
 
-        return convertToResponse(refund);
+        return convertToResponse(savedRefund);
     }
 
-    @Transactional(readOnly = true)
     public List<SupplierRefundResponse> getRefundsBySupplierId(
-            Long supplierId) {
+            Long supplierId
+    ) {
+
+        if (supplierId == null || supplierId <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Valid supplier ID is required"
+            );
+        }
 
         if (!supplierRepository.existsById(supplierId)) {
-            throw new EntityNotFoundException("Supplier not found");
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Supplier not found"
+            );
         }
 
         return refundRepository
@@ -110,15 +128,85 @@ public class SupplierRefundService {
                 .toList();
     }
 
+    private void validateRequest(SupplierRefundRequest request) {
+
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Refund request is required"
+            );
+        }
+
+        if (request.getSupplierId() == null
+                || request.getSupplierId() <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Valid supplier ID is required"
+            );
+        }
+
+        BigDecimal amount = request.getAmount();
+
+        if (amount == null || amount.compareTo(ZERO) <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Refund amount must be greater than zero"
+            );
+        }
+
+        if (amount.scale() > 2
+                || amount.precision() - amount.scale() > 10) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Refund amount supports up to 10 integer digits "
+                            + "and 2 decimal places"
+            );
+        }
+
+        if (request.getPaymentMethod() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payment method is required"
+            );
+        }
+
+        if (request.getReferenceNumber() != null
+                && request.getReferenceNumber().length() > 100) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Reference number cannot exceed 100 characters"
+            );
+        }
+
+        if (request.getRemarks() != null
+                && request.getRemarks().length() > 500) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Remarks cannot exceed 500 characters"
+            );
+        }
+    }
+
     private String generateRefundNumber() {
-        return "SREF-" + UUID.randomUUID()
-                .toString()
-                .substring(0, 12)
-                .toUpperCase();
+
+        String refundNumber;
+
+        do {
+            refundNumber = "SREF-"
+                    + UUID.randomUUID()
+                    .toString()
+                    .replace("-", "")
+                    .substring(0, 12)
+                    .toUpperCase();
+
+        } while (refundRepository.existsByRefundNumber(refundNumber));
+
+        return refundNumber;
     }
 
     private SupplierRefundResponse convertToResponse(
-            SupplierRefund refund) {
+            SupplierRefund refund
+    ) {
 
         SupplierRefundResponse response =
                 new SupplierRefundResponse();
@@ -126,7 +214,9 @@ public class SupplierRefundService {
         response.setId(refund.getId());
         response.setRefundNumber(refund.getRefundNumber());
         response.setSupplierId(refund.getSupplier().getId());
-        response.setSupplierName(refund.getSupplier().getSupplierName());
+        response.setSupplierName(
+                refund.getSupplier().getSupplierName()
+        );
         response.setAmount(refund.getAmount());
         response.setPaymentMethod(refund.getPaymentMethod());
         response.setRefundDate(refund.getRefundDate());

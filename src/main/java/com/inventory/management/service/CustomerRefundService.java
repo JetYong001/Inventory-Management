@@ -1,4 +1,3 @@
-
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.CustomerRefundRequest;
@@ -12,14 +11,15 @@ import com.inventory.management.repository.CustomerCreditTransactionRepository;
 import com.inventory.management.repository.CustomerRefundRepository;
 import com.inventory.management.repository.CustomerRepository;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -43,15 +43,18 @@ public class CustomerRefundService {
     }
 
     @Transactional
-    public CustomerRefundResponse createRefund(CustomerRefundRequest request) {
+    public CustomerRefundResponse createRefund(
+            CustomerRefundRequest request
+    ) {
 
         validateRequest(request);
 
         Customer customer = customerRepository.findByIdForUpdate(
                 request.getCustomerId()
-        ).orElseThrow(() ->
-                new RuntimeException("Customer not found")
-        );
+        ).orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Customer not found"
+        ));
 
         List<CustomerCreditTransaction> transactions =
                 creditTransactionRepository
@@ -59,20 +62,22 @@ public class CustomerRefundService {
 
         BigDecimal availableBalance = transactions.stream()
                 .map(CustomerCreditTransaction::getAmount)
-                .filter(Objects::nonNull)
+                .filter(amount -> amount != null)
                 .reduce(ZERO, BigDecimal::add);
 
         BigDecimal refundAmount = request.getAmount();
 
         if (availableBalance.compareTo(refundAmount) < 0) {
             throw new InsufficientCreditException(
-                    "Insufficient customer credit balance"
+                    "Insufficient customer credit balance. Available: "
+                            + availableBalance
             );
         }
 
         String refundNumber = generateRefundNumber();
 
         CustomerRefund refund = new CustomerRefund();
+
         refund.setCustomer(customer);
         refund.setRefundNumber(refundNumber);
         refund.setAmount(refundAmount);
@@ -85,7 +90,8 @@ public class CustomerRefundService {
         refund.setReferenceNumber(request.getReferenceNumber());
         refund.setRemarks(request.getRemarks());
 
-        CustomerRefund savedRefund = refundRepository.save(refund);
+        CustomerRefund savedRefund =
+                refundRepository.saveAndFlush(refund);
 
         CustomerCreditTransaction ledgerTransaction =
                 new CustomerCreditTransaction();
@@ -106,21 +112,29 @@ public class CustomerRefundService {
         return convertToResponse(savedRefund, savedLedger.getId());
     }
 
-    public List<CustomerRefundResponse> getCustomerRefunds(Long customerId) {
+    public List<CustomerRefundResponse> getCustomerRefunds(
+            Long customerId
+    ) {
 
         if (customerId == null || customerId <= 0) {
-            throw new RuntimeException("Invalid customer ID");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Valid customer ID is required"
+            );
         }
 
-        Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() ->
-                        new RuntimeException("Customer not found")
-                );
+        if (!customerRepository.existsById(customerId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Customer not found"
+            );
+        }
 
         return refundRepository
-                .findByCustomerIdOrderByCreatedAtDesc(customer.getId())
+                .findByCustomerIdOrderByCreatedAtDesc(customerId)
                 .stream()
                 .map(refund -> {
+
                     CustomerCreditTransaction ledgerTransaction =
                             creditTransactionRepository
                                     .findByReferenceNumberAndTransactionType(
@@ -128,9 +142,10 @@ public class CustomerRefundService {
                                             CustomerCreditTransactionType.REFUND
                                     );
 
-                    Long ledgerTransactionId = ledgerTransaction != null
-                            ? ledgerTransaction.getId()
-                            : null;
+                    Long ledgerTransactionId =
+                            ledgerTransaction != null
+                                    ? ledgerTransaction.getId()
+                                    : null;
 
                     return convertToResponse(
                             refund,
@@ -143,55 +158,65 @@ public class CustomerRefundService {
     private void validateRequest(CustomerRefundRequest request) {
 
         if (request == null) {
-            throw new RuntimeException("Refund request cannot be null");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Refund request is required"
+            );
         }
 
         if (request.getCustomerId() == null
                 || request.getCustomerId() <= 0) {
-            throw new RuntimeException("Invalid customer ID");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Valid customer ID is required"
+            );
         }
 
         BigDecimal amount = request.getAmount();
 
         if (amount == null || amount.compareTo(ZERO) <= 0) {
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Refund amount must be greater than zero"
             );
         }
 
-        if (amount.scale() > 2) {
-            throw new RuntimeException(
-                    "Refund amount cannot have more than 2 decimal places"
-            );
-        }
-
-        if (amount.precision() - amount.scale() > 10) {
-            throw new RuntimeException(
-                    "Refund amount exceeds the maximum allowed value"
+        if (amount.scale() > 2
+                || amount.precision() - amount.scale() > 10) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Refund amount supports up to 10 integer digits "
+                            + "and 2 decimal places"
             );
         }
 
         if (request.getPaymentMethod() == null) {
-            throw new RuntimeException("Payment method is required");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payment method is required"
+            );
         }
 
         if (request.getReferenceNumber() != null
                 && request.getReferenceNumber().length() > 100) {
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Reference number cannot exceed 100 characters"
             );
         }
 
         if (request.getRemarks() != null
                 && request.getRemarks().length() > 500) {
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Remarks cannot exceed 500 characters"
             );
         }
 
         if (request.getRefundDate() != null
                 && request.getRefundDate().isAfter(LocalDate.now())) {
-            throw new RuntimeException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Refund date cannot be in the future"
             );
         }
@@ -199,13 +224,21 @@ public class CustomerRefundService {
 
     private String generateRefundNumber() {
 
-        return "CRF-"
-                + Year.now().getValue()
-                + "-"
-                + UUID.randomUUID()
-                .toString()
-                .substring(0, 8)
-                .toUpperCase();
+        String refundNumber;
+
+        do {
+            refundNumber = "CRF-"
+                    + Year.now().getValue()
+                    + "-"
+                    + UUID.randomUUID()
+                    .toString()
+                    .replace("-", "")
+                    .substring(0, 8)
+                    .toUpperCase();
+
+        } while (refundRepository.existsByRefundNumber(refundNumber));
+
+        return refundNumber;
     }
 
     private CustomerRefundResponse convertToResponse(

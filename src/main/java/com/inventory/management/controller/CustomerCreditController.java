@@ -1,4 +1,3 @@
-
 package com.inventory.management.controller;
 
 import com.inventory.management.dto.request.CustomerCreditApplicationRequest;
@@ -9,6 +8,7 @@ import com.inventory.management.dto.response.CustomerRefundResponse;
 import com.inventory.management.service.CustomerCreditService;
 import com.inventory.management.service.CustomerRefundService;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,9 +55,9 @@ public class CustomerCreditController {
             @RequestBody CustomerRefundRequest request
     ) {
 
-        return ResponseEntity.ok(
-                customerRefundService.createRefund(request)
-        );
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(customerRefundService.createRefund(request));
     }
 
     @GetMapping("/refunds/{customerId}")

@@ -1,4 +1,3 @@
-
 package com.inventory.management.repository;
 
 import com.inventory.management.entity.CustomerRefund;
@@ -12,4 +11,6 @@ public interface CustomerRefundRepository
     List<CustomerRefund> findByCustomerIdOrderByCreatedAtDesc(
             Long customerId
     );
+
+    boolean existsByRefundNumber(String refundNumber);
 }

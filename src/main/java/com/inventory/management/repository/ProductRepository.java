@@ -1,10 +1,7 @@
-
 package com.inventory.management.repository;
 
 import com.inventory.management.entity.Product;
-
 import jakarta.persistence.LockModeType;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,6 +15,8 @@ import java.util.Optional;
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     boolean existsByProductCode(String productCode);
+
+    boolean existsByCategory_Id(Long categoryId);
 
     Page<Product> findAllByActiveTrue(Pageable pageable);
 
