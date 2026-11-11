@@ -157,10 +157,10 @@ public class PurchaseReturnService {
 
             long requestedTotal = returnedQuantity + itemRequest.getQuantity();
 
-            if (requestedTotal > purchaseItem.getQuantity()) {
+            if (requestedTotal > purchaseItem.getReceivedQuantity()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Return quantity exceeds original purchase quantity for "
+                        "Return quantity exceeds received quantity for "
                                 + purchaseItem.getProductNameSnapshot()
                 );
             }
