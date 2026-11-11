@@ -9,13 +9,19 @@ import com.inventory.management.entity.*;
 import com.inventory.management.enums.*;
 import com.inventory.management.repository.*;
 import com.inventory.management.util.BusinessCodeGenerator;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -55,14 +61,38 @@ public class PurchaseReturnService {
         this.inventoryService = inventoryService;
     }
 
-    public PurchaseReturnResponse createPurchaseReturn(PurchaseReturnRequest request) {
+    public PurchaseReturnResponse createPurchaseReturn(
+            PurchaseReturnRequest request,
+            String idempotencyKey
+    ) {
         validateRequest(request);
+        validateIdempotencyKey(idempotencyKey);
+
+        String requestHash = generateRequestHash(request);
 
         Purchase purchase = purchaseRepository.findByIdForUpdate(
                 request.getPurchaseId()
         ).orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Purchase not found"
+                HttpStatus.NOT_FOUND,
+                "Purchase not found"
         ));
+
+        PurchaseReturn existingReturn =
+                purchaseReturnRepository
+                        .findByIdempotencyKey(idempotencyKey)
+                        .orElse(null);
+
+        if (existingReturn != null) {
+
+            if (!existingReturn.getRequestHash().equals(requestHash)) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Idempotency key has already been used with different request data"
+                );
+            }
+
+            return convertToResponse(existingReturn);
+        }
 
         if (purchase.getStatus() != PurchaseStatus.RECEIVED) {
             throw new ResponseStatusException(
@@ -97,11 +127,17 @@ public class PurchaseReturnService {
         Set<Long> processedItemIds = new HashSet<>();
 
         PurchaseReturn purchaseReturn = new PurchaseReturn();
-        purchaseReturn.setReturnNumber(BusinessCodeGenerator.temporary());
+
+        purchaseReturn.setReturnNumber(
+                BusinessCodeGenerator.temporary()
+        );
+
         purchaseReturn.setPurchase(purchase);
         purchaseReturn.setPurchaseInvoice(invoice);
         purchaseReturn.setReturnDate(LocalDateTime.now());
         purchaseReturn.setReason(request.getReason());
+        purchaseReturn.setIdempotencyKey(idempotencyKey);
+        purchaseReturn.setRequestHash(requestHash);
 
         PurchaseReturn savedReturn =
                 purchaseReturnRepository.saveAndFlush(purchaseReturn);
@@ -115,20 +151,6 @@ public class PurchaseReturnService {
         BigDecimal totalAmount = ZERO;
 
         for (PurchaseReturnItemRequest itemRequest : request.getItems()) {
-
-            if (itemRequest == null || itemRequest.getPurchaseItemId() == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Purchase item ID is required"
-                );
-            }
-
-            if (itemRequest.getQuantity() == null || itemRequest.getQuantity() <= 0) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Return quantity must be greater than zero"
-                );
-            }
 
             Long purchaseItemId = itemRequest.getPurchaseItemId();
 
@@ -150,12 +172,16 @@ public class PurchaseReturnService {
                     ));
 
             Long previouslyReturned =
-                    purchaseReturnItemRepository.getReturnedQuantity(purchaseItemId);
+                    purchaseReturnItemRepository.getReturnedQuantity(
+                            purchaseItemId
+                    );
 
             long returnedQuantity = previouslyReturned == null
-                    ? 0 : previouslyReturned;
+                    ? 0
+                    : previouslyReturned;
 
-            long requestedTotal = returnedQuantity + itemRequest.getQuantity();
+            long requestedTotal =
+                    returnedQuantity + itemRequest.getQuantity();
 
             if (requestedTotal > purchaseItem.getReceivedQuantity()) {
                 throw new ResponseStatusException(
@@ -180,15 +206,21 @@ public class PurchaseReturnService {
             }
 
             BigDecimal unitCost = purchaseItem.getUnitCost();
+
             BigDecimal subtotal = unitCost.multiply(
                     BigDecimal.valueOf(itemRequest.getQuantity())
             );
 
             PurchaseReturnItem returnItem = new PurchaseReturnItem();
+
             returnItem.setPurchaseReturn(savedReturn);
             returnItem.setPurchaseItem(purchaseItem);
-            returnItem.setProductCode(purchaseItem.getProductCodeSnapshot());
-            returnItem.setProductName(purchaseItem.getProductNameSnapshot());
+            returnItem.setProductCode(
+                    purchaseItem.getProductCodeSnapshot()
+            );
+            returnItem.setProductName(
+                    purchaseItem.getProductNameSnapshot()
+            );
             returnItem.setQuantity(itemRequest.getQuantity());
             returnItem.setUnitCost(unitCost);
             returnItem.setSubtotal(subtotal);
@@ -207,10 +239,15 @@ public class PurchaseReturnService {
         }
 
         savedReturn.setTotalAmount(totalAmount);
+
         purchaseReturnRepository.saveAndFlush(savedReturn);
 
         PurchaseCreditNote creditNote = new PurchaseCreditNote();
-        creditNote.setCreditNoteNumber(BusinessCodeGenerator.temporary());
+
+        creditNote.setCreditNoteNumber(
+                BusinessCodeGenerator.temporary()
+        );
+
         creditNote.setPurchaseReturn(savedReturn);
         creditNote.setPurchaseInvoice(invoice);
         creditNote.setTotalAmount(totalAmount);
@@ -220,13 +257,17 @@ public class PurchaseReturnService {
                 purchaseCreditNoteRepository.saveAndFlush(creditNote);
 
         savedCreditNote.setCreditNoteNumber(
-                BusinessCodeGenerator.format("PCN", savedCreditNote.getId())
+                BusinessCodeGenerator.format(
+                        "PCN",
+                        savedCreditNote.getId()
+                )
         );
 
         purchaseCreditNoteRepository.saveAndFlush(savedCreditNote);
 
         if (supplierCreditTransactionRepository
                 .existsByPurchaseCreditNoteId(savedCreditNote.getId())) {
+
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Credit transaction already exists for this credit note"
@@ -239,26 +280,91 @@ public class PurchaseReturnService {
         creditTransaction.setSupplier(supplier);
         creditTransaction.setPurchaseCreditNote(savedCreditNote);
         creditTransaction.setPurchaseInvoice(invoice);
+
         creditTransaction.setTransactionType(
                 SupplierCreditTransactionType.CREDIT_NOTE_ISSUED
         );
+
         creditTransaction.setAmount(totalAmount);
+
         creditTransaction.setReferenceNumber(
                 savedCreditNote.getCreditNoteNumber()
         );
+
         creditTransaction.setRemarks(
                 "Supplier credit issued from purchase return "
                         + savedReturn.getReturnNumber()
         );
 
-        supplierCreditTransactionRepository.saveAndFlush(creditTransaction);
+        supplierCreditTransactionRepository.saveAndFlush(
+                creditTransaction
+        );
 
         updatePurchaseInvoiceStatus(invoice);
 
         return convertToResponse(savedReturn);
     }
 
+    private void validateIdempotencyKey(String key) {
+
+        if (key == null || key.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Idempotency-Key header is required"
+            );
+        }
+
+        if (key.length() > 100) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Idempotency-Key cannot exceed 100 characters"
+            );
+        }
+    }
+
+    private String generateRequestHash(PurchaseReturnRequest request) {
+
+        StringBuilder content = new StringBuilder();
+
+        content.append(request.getPurchaseId()).append("\n");
+
+        String reason = request.getReason();
+
+        content.append(reason.length())
+                .append(":")
+                .append(reason)
+                .append("\n");
+
+        request.getItems()
+                .stream()
+                .sorted(Comparator.comparing(
+                        PurchaseReturnItemRequest::getPurchaseItemId
+                ))
+                .forEach(item -> content
+                        .append(item.getPurchaseItemId())
+                        .append(":")
+                        .append(item.getQuantity())
+                        .append("\n"));
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+            byte[] hash = digest.digest(
+                    content.toString().getBytes(StandardCharsets.UTF_8)
+            );
+
+            return HexFormat.of().formatHex(hash);
+
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(
+                    "Unable to generate request hash",
+                    exception
+            );
+        }
+    }
+
     private void validateRequest(PurchaseReturnRequest request) {
+
         if (request == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -266,42 +372,83 @@ public class PurchaseReturnService {
             );
         }
 
-        if (request.getPurchaseId() == null || request.getPurchaseId() <= 0) {
+        if (request.getPurchaseId() == null
+                || request.getPurchaseId() <= 0) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Valid purchase ID is required"
             );
         }
 
-        if (request.getItems() == null || request.getItems().isEmpty()) {
+        if (request.getReason() == null
+                || request.getReason().isBlank()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Return reason is required"
+            );
+        }
+
+        if (request.getItems() == null
+                || request.getItems().isEmpty()) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "At least one return item is required"
             );
         }
+
+        for (PurchaseReturnItemRequest item : request.getItems()) {
+
+            if (item == null || item.getPurchaseItemId() == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Purchase item ID is required"
+                );
+            }
+
+            if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Return quantity must be greater than zero"
+                );
+            }
+        }
     }
 
     private void updatePurchaseInvoiceStatus(PurchaseInvoice invoice) {
+
         BigDecimal total = safeAmount(invoice.getTotalAmount());
 
         BigDecimal paid = safeAmount(
-                paymentRepository.getTotalPurchaseInvoicePayments(invoice.getId())
+                paymentRepository.getTotalPurchaseInvoicePayments(
+                        invoice.getId()
+                )
         );
 
         List<SupplierCreditTransaction> transactions =
                 supplierCreditTransactionRepository
-                        .findByPurchaseInvoice_IdOrderByCreatedAtDesc(invoice.getId());
+                        .findByPurchaseInvoice_IdOrderByCreatedAtDesc(
+                                invoice.getId()
+                        );
 
-        BigDecimal appliedCredit = calculateNetAppliedCredit(transactions);
+        BigDecimal appliedCredit =
+                calculateNetAppliedCredit(transactions);
 
         BigDecimal remaining = total
                 .subtract(paid)
                 .subtract(appliedCredit)
                 .max(ZERO);
 
-        invoice.setStatus(determineStatus(
-                total, paid, appliedCredit, remaining
-        ));
+        invoice.setStatus(
+                determineStatus(
+                        total,
+                        paid,
+                        appliedCredit,
+                        remaining
+                )
+        );
 
         purchaseInvoiceRepository.save(invoice);
     }
@@ -331,24 +478,31 @@ public class PurchaseReturnService {
             BigDecimal remaining
     ) {
         if (remaining.compareTo(ZERO) > 0) {
-            if (paid.compareTo(ZERO) > 0 && credit.compareTo(ZERO) > 0) {
+
+            if (paid.compareTo(ZERO) > 0
+                    && credit.compareTo(ZERO) > 0) {
                 return PurchaseInvoiceStatus.PARTIALLY_SETTLED;
             }
+
             if (paid.compareTo(ZERO) > 0) {
                 return PurchaseInvoiceStatus.PARTIALLY_PAID;
             }
+
             if (credit.compareTo(ZERO) > 0) {
                 return PurchaseInvoiceStatus.PARTIALLY_CREDITED;
             }
+
             return PurchaseInvoiceStatus.UNPAID;
         }
 
         if (paid.compareTo(total) >= 0) {
             return PurchaseInvoiceStatus.PAID;
         }
+
         if (credit.compareTo(total) >= 0) {
             return PurchaseInvoiceStatus.CREDITED;
         }
+
         return PurchaseInvoiceStatus.SETTLED;
     }
 
@@ -358,17 +512,21 @@ public class PurchaseReturnService {
 
     @Transactional(readOnly = true)
     public PurchaseReturnResponse getPurchaseReturnById(Long id) {
-        PurchaseReturn purchaseReturn = purchaseReturnRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Purchase return not found"
-                ));
+
+        PurchaseReturn purchaseReturn =
+                purchaseReturnRepository.findById(id)
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Purchase return not found"
+                        ));
 
         return convertToResponse(purchaseReturn);
     }
 
     @Transactional(readOnly = true)
-    public List<PurchaseReturnResponse> getPurchaseReturnsByPurchaseId(Long purchaseId) {
+    public List<PurchaseReturnResponse> getPurchaseReturnsByPurchaseId(
+            Long purchaseId
+    ) {
         return purchaseReturnRepository
                 .findByPurchase_IdOrderByReturnDateDesc(purchaseId)
                 .stream()
@@ -376,17 +534,31 @@ public class PurchaseReturnService {
                 .toList();
     }
 
-    private PurchaseReturnResponse convertToResponse(PurchaseReturn purchaseReturn) {
-        PurchaseReturnResponse response = new PurchaseReturnResponse();
+    private PurchaseReturnResponse convertToResponse(
+            PurchaseReturn purchaseReturn
+    ) {
+        PurchaseReturnResponse response =
+                new PurchaseReturnResponse();
 
         response.setId(purchaseReturn.getId());
         response.setReturnNumber(purchaseReturn.getReturnNumber());
-        response.setPurchaseId(purchaseReturn.getPurchase().getId());
-        response.setPurchaseNumber(purchaseReturn.getPurchase().getPurchaseNumber());
-        response.setPurchaseInvoiceId(purchaseReturn.getPurchaseInvoice().getId());
+
+        response.setPurchaseId(
+                purchaseReturn.getPurchase().getId()
+        );
+
+        response.setPurchaseNumber(
+                purchaseReturn.getPurchase().getPurchaseNumber()
+        );
+
+        response.setPurchaseInvoiceId(
+                purchaseReturn.getPurchaseInvoice().getId()
+        );
+
         response.setInvoiceNumber(
                 purchaseReturn.getPurchaseInvoice().getInvoiceNumber()
         );
+
         response.setReturnDate(purchaseReturn.getReturnDate());
         response.setReason(purchaseReturn.getReason());
         response.setTotalAmount(purchaseReturn.getTotalAmount());
@@ -394,24 +566,42 @@ public class PurchaseReturnService {
         List<PurchaseReturnItemResponse> items =
                 purchaseReturn.getItems().stream()
                         .map(item -> {
+
                             PurchaseReturnItemResponse itemResponse =
                                     new PurchaseReturnItemResponse();
 
                             itemResponse.setId(item.getId());
+
                             itemResponse.setPurchaseItemId(
                                     item.getPurchaseItem().getId()
                             );
-                            itemResponse.setProductCode(item.getProductCode());
-                            itemResponse.setProductName(item.getProductName());
-                            itemResponse.setQuantity(item.getQuantity());
-                            itemResponse.setUnitCost(item.getUnitCost());
-                            itemResponse.setSubtotal(item.getSubtotal());
+
+                            itemResponse.setProductCode(
+                                    item.getProductCode()
+                            );
+
+                            itemResponse.setProductName(
+                                    item.getProductName()
+                            );
+
+                            itemResponse.setQuantity(
+                                    item.getQuantity()
+                            );
+
+                            itemResponse.setUnitCost(
+                                    item.getUnitCost()
+                            );
+
+                            itemResponse.setSubtotal(
+                                    item.getSubtotal()
+                            );
 
                             return itemResponse;
                         })
                         .toList();
 
         response.setItems(items);
+
         return response;
     }
 }

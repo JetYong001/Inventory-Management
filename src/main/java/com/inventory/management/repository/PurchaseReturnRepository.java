@@ -1,3 +1,4 @@
+
 package com.inventory.management.repository;
 
 import com.inventory.management.entity.PurchaseReturn;
@@ -13,5 +14,9 @@ public interface PurchaseReturnRepository
 
     Optional<PurchaseReturn> findByReturnNumber(String returnNumber);
 
-    List<PurchaseReturn> findByPurchase_IdOrderByReturnDateDesc(Long purchaseId);
+    Optional<PurchaseReturn> findByIdempotencyKey(String idempotencyKey);
+
+    List<PurchaseReturn> findByPurchase_IdOrderByReturnDateDesc(
+            Long purchaseId
+    );
 }

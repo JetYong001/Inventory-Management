@@ -25,20 +25,22 @@ public class PurchaseReturnController {
         this.purchaseReturnService = purchaseReturnService;
     }
 
-    // CREATE PURCHASE RETURN
     @PostMapping
     public ResponseEntity<PurchaseReturnResponse> createPurchaseReturn(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody PurchaseReturnRequest request) {
 
         PurchaseReturnResponse response =
-                purchaseReturnService.createPurchaseReturn(request);
+                purchaseReturnService.createPurchaseReturn(
+                        request,
+                        idempotencyKey
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
 
-    // GET PURCHASE RETURN BY ID
     @GetMapping("/{returnId}")
     public ResponseEntity<PurchaseReturnResponse> getPurchaseReturnById(
             @PathVariable Long returnId) {
@@ -48,7 +50,6 @@ public class PurchaseReturnController {
         );
     }
 
-    // GET PURCHASE RETURNS BY PURCHASE ID
     @GetMapping("/purchase/{purchaseId}")
     public ResponseEntity<List<PurchaseReturnResponse>>
     getPurchaseReturnsByPurchaseId(
@@ -56,7 +57,8 @@ public class PurchaseReturnController {
 
         return ResponseEntity.ok(
                 purchaseReturnService.getPurchaseReturnsByPurchaseId(
-                        purchaseId)
+                        purchaseId
+                )
         );
     }
 }

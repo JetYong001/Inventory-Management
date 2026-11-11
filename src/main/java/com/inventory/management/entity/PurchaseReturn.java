@@ -1,3 +1,4 @@
+
 package com.inventory.management.entity;
 
 import jakarta.persistence.*;
@@ -34,6 +35,12 @@ public class PurchaseReturn {
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;
+
+    @Column(name = "idempotency_key", unique = true, length = 100)
+    private String idempotencyKey;
+
+    @Column(name = "request_hash", length = 64)
+    private String requestHash;
 
     @OneToMany(
             mappedBy = "purchaseReturn",
@@ -106,6 +113,22 @@ public class PurchaseReturn {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
+
+    public String getRequestHash() {
+        return requestHash;
+    }
+
+    public void setRequestHash(String requestHash) {
+        this.requestHash = requestHash;
     }
 
     public List<PurchaseReturnItem> getItems() {
