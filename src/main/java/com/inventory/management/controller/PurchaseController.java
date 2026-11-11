@@ -1,10 +1,11 @@
-
 package com.inventory.management.controller;
 
 import com.inventory.management.dto.request.PurchaseRequest;
 import com.inventory.management.dto.response.PurchaseResponse;
 import com.inventory.management.service.PurchaseService;
+
 import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,57 +25,48 @@ public class PurchaseController {
 
     @PostMapping
     public ResponseEntity<PurchaseResponse> createPurchase(
-            @Valid @RequestBody PurchaseRequest request) {
+            @Valid @RequestBody PurchaseRequest request
+    ) {
+        PurchaseResponse response =
+                purchaseService.createPurchase(request);
 
-        PurchaseResponse response = purchaseService.createPurchase(request);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
     }
 
     @GetMapping
     public ResponseEntity<List<PurchaseResponse>> getAllPurchases() {
-
-        List<PurchaseResponse> purchases =
-                purchaseService.getAllPurchases();
-
-        return ResponseEntity.ok(purchases);
+        return ResponseEntity.ok(
+                purchaseService.getAllPurchases()
+        );
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<PurchaseResponse> getPurchaseById(
-            @PathVariable Long id) {
-
-        PurchaseResponse response = purchaseService.getPurchaseById(id);
-
-        return ResponseEntity.ok(response);
-    }
-
-    @PatchMapping("/{id}/receive")
-    public ResponseEntity<PurchaseResponse> receivePurchase(
-            @PathVariable Long id) {
-
-        PurchaseResponse response = purchaseService.receivePurchase(id);
-
-        return ResponseEntity.ok(response);
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                purchaseService.getPurchaseById(id)
+        );
     }
 
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<PurchaseResponse> cancelPurchase(
-            @PathVariable Long id) {
-
-        PurchaseResponse response = purchaseService.cancelPurchase(id);
-
-        return ResponseEntity.ok(response);
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                purchaseService.cancelPurchase(id)
+        );
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<PurchaseResponse> updatePurchase(
             @PathVariable Long id,
-            @Valid @RequestBody PurchaseRequest request) {
-
+            @Valid @RequestBody PurchaseRequest request
+    ) {
         return ResponseEntity.ok(
                 purchaseService.updatePurchase(id, request)
         );
     }
-
 }

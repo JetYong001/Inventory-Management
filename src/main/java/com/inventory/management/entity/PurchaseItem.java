@@ -28,6 +28,9 @@ public class PurchaseItem {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Column(name = "received_quantity", nullable = false)
+    private Integer receivedQuantity = 0;
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal unitCost;
 
@@ -79,6 +82,18 @@ public class PurchaseItem {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public Integer getReceivedQuantity() {
+        return receivedQuantity == null ? 0 : receivedQuantity;
+    }
+
+    public void setReceivedQuantity(Integer receivedQuantity) {
+        this.receivedQuantity = receivedQuantity;
+    }
+
+    public Integer getRemainingQuantity() {
+        return getQuantity() - getReceivedQuantity();
     }
 
     public BigDecimal getUnitCost() {
