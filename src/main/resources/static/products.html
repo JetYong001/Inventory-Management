@@ -1,0 +1,197 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock | Products</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/products.css">
+    <script src="/js/api.js" defer></script>
+    <script src="/js/products.js" defer></script>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">S</div>
+            <div><h2>SmartStock</h2><span>Inventory System</span></div>
+        </div>
+
+        <div class="nav-label">WORKSPACE</div>
+        <nav class="navigation">
+            <a class="nav-link" href="/dashboard.html"><span class="nav-icon">▦</span>Dashboard</a>
+            <a class="nav-link active" href="/products.html"><span class="nav-icon">▣</span>Products</a>
+            <a class="nav-link" href="/categories.html"><span class="nav-icon">▤</span>Categories</a>
+            <a class="nav-link" href="/suppliers.html"><span class="nav-icon">♧</span>Suppliers</a>
+            <a class="nav-link" href="/customers.html"><span class="nav-icon">♙</span>Customers</a>
+        </nav>
+
+        <div class="nav-label">TRANSACTIONS</div>
+        <nav class="navigation">
+            <a class="nav-link" href="/purchases.html"><span class="nav-icon">↓</span>Purchases</a>
+            <a class="nav-link" href="/sales.html"><span class="nav-icon">↑</span>Sales</a>
+            <a class="nav-link" href="/inventory.html"><span class="nav-icon">▦</span>Inventory</a>
+        </nav>
+
+        <div class="nav-label">ANALYTICS</div>
+        <nav class="navigation">
+            <a class="nav-link" href="/reports.html"><span class="nav-icon">▥</span>Reports</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-status"><span class="status-dot"></span>System Connected</div>
+            <div class="sidebar-version">SmartStock v1.0</div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div class="mobile-brand">
+                <button id="menuToggle" class="menu-toggle">☰</button>
+                <strong>SmartStock</strong>
+            </div>
+            <div class="breadcrumb">Workspace <span>/</span> Products</div>
+            <div class="topbar-right">
+                <div class="date-display" id="currentDate"></div>
+                <div class="user-avatar">A</div>
+            </div>
+        </header>
+
+        <section class="page-content">
+            <div class="page-heading">
+                <div>
+                    <p class="eyebrow">PRODUCT MANAGEMENT</p>
+                    <h1>Products</h1>
+                    <p class="page-description">Manage your product catalogue and pricing.</p>
+                </div>
+                <button class="primary-button" id="addProductButton">＋ Add Product</button>
+            </div>
+
+            <div id="pageMessage" class="error-message hidden"></div>
+
+            <section class="product-summary">
+                <div class="product-stat">
+                    <span>Total Products</span>
+                    <strong id="totalProductCount">—</strong>
+                </div>
+                <div class="product-stat">
+                    <span>Active Products</span>
+                    <strong id="activeProductCount">—</strong>
+                </div>
+                <div class="product-stat">
+                    <span>Inactive Products</span>
+                    <strong id="inactiveProductCount">—</strong>
+                </div>
+            </section>
+
+            <section class="panel product-panel">
+                <div class="product-toolbar">
+                    <div>
+                        <h3>Product Catalogue</h3>
+                        <p>View, search and manage your products.</p>
+                    </div>
+
+                    <div class="product-filters">
+                        <input id="searchInput" type="search" placeholder="Search product name or code...">
+                        <select id="statusFilter">
+                            <option value="">All Products</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                        <button class="secondary-button" id="searchButton">Search</button>
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            <th>Cost Price</th>
+                            <th>Selling Price</th>
+                            <th>Stock</th>
+                            <th>Min. Stock</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="productsTable">
+                        <tr><td colspan="9" class="table-message">Loading products...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <span id="pageInfo">Page 1</span>
+                    <div>
+                        <button class="secondary-button" id="previousPage">Previous</button>
+                        <button class="secondary-button" id="nextPage">Next</button>
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+</div>
+
+<div class="modal-overlay hidden" id="productModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div>
+                <h2 id="modalTitle">Add Product</h2>
+                <p>Enter the product information below.</p>
+            </div>
+            <button class="modal-close" id="closeModalButton">×</button>
+        </div>
+
+        <form id="productForm">
+            <input type="hidden" id="productId">
+
+            <div class="form-grid">
+                <div class="form-field full">
+                    <label for="productName">Product Name *</label>
+                    <input id="productName" maxlength="150" required>
+                </div>
+
+                <div class="form-field full">
+                    <label for="productDescription">Description</label>
+                    <textarea id="productDescription" maxlength="500" rows="3"></textarea>
+                </div>
+
+                <div class="form-field full">
+                    <label for="categoryId">Category *</label>
+                    <select id="categoryId" required>
+                        <option value="">Loading categories...</option>
+                    </select>
+                </div>
+
+                <div class="form-field">
+                    <label for="costPrice">Cost Price (RM) *</label>
+                    <input id="costPrice" type="number" min="0" step="0.01" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="sellingPrice">Selling Price (RM) *</label>
+                    <input id="sellingPrice" type="number" min="0" step="0.01" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="minimumStock">Minimum Stock *</label>
+                    <input id="minimumStock" type="number" min="0" step="1" required>
+                </div>
+            </div>
+
+            <div id="formError" class="form-error hidden"></div>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-button" id="cancelModalButton">Cancel</button>
+                <button type="submit" class="primary-button" id="saveProductButton">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

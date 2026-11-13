@@ -1,0 +1,283 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock | Dashboard</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/api.js" defer></script>
+    <script src="/js/dashboard.js" defer></script>
+</head>
+<body>
+
+<div class="app-layout">
+
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">S</div>
+            <div>
+                <h2>SmartStock</h2>
+                <span>Inventory System</span>
+            </div>
+        </div>
+
+        <div class="nav-label">WORKSPACE</div>
+
+        <nav class="navigation">
+            <a class="nav-link active" href="/dashboard.html">
+                <span class="nav-icon">▦</span>
+                Dashboard
+            </a>
+            <a class="nav-link" href="/products.html">
+                <span class="nav-icon">▣</span>
+                Products
+            </a>
+            <a class="nav-link" href="/categories.html">
+                <span class="nav-icon">▤</span>
+                Categories
+            </a>
+            <a class="nav-link" href="/suppliers.html">
+                <span class="nav-icon">♧</span>
+                Suppliers
+            </a>
+            <a class="nav-link" href="/customers.html">
+                <span class="nav-icon">♙</span>
+                Customers
+            </a>
+        </nav>
+
+        <div class="nav-label">TRANSACTIONS</div>
+
+        <nav class="navigation">
+            <a class="nav-link" href="/purchases.html">
+                <span class="nav-icon">↓</span>
+                Purchases
+            </a>
+            <a class="nav-link" href="/sales.html">
+                <span class="nav-icon">↑</span>
+                Sales
+            </a>
+            <a class="nav-link" href="/inventory.html">
+                <span class="nav-icon">▦</span>
+                Inventory
+            </a>
+        </nav>
+
+        <div class="nav-label">ANALYTICS</div>
+
+        <nav class="navigation">
+            <a class="nav-link" href="/reports.html">
+                <span class="nav-icon">▥</span>
+                Reports
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-status">
+                <span class="status-dot"></span>
+                System Connected
+            </div>
+            <div class="sidebar-version">SmartStock v1.0</div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <div class="mobile-brand">
+                <button id="menuToggle" class="menu-toggle">☰</button>
+                <strong>SmartStock</strong>
+            </div>
+
+            <div class="breadcrumb">
+                Workspace <span>/</span> Dashboard
+            </div>
+
+            <div class="topbar-right">
+                <div class="date-display" id="currentDate">Loading date...</div>
+                <div class="user-avatar">A</div>
+            </div>
+        </header>
+
+        <section class="page-content">
+
+            <div class="page-heading">
+                <div>
+                    <p class="eyebrow">OVERVIEW</p>
+                    <h1>Dashboard</h1>
+                    <p class="page-description">
+                        Monitor your inventory and business activities.
+                    </p>
+                </div>
+
+                <button class="refresh-button" id="refreshButton">
+                    ↻ Refresh Data
+                </button>
+            </div>
+
+            <div id="dashboardError" class="error-message hidden"></div>
+
+            <section class="summary-grid">
+
+                <article class="summary-card">
+                    <div class="summary-top">
+                        <span class="summary-label">Total Products</span>
+                        <div class="summary-icon blue">▣</div>
+                    </div>
+                    <h2 id="totalProducts">—</h2>
+                    <p class="summary-note">Registered products</p>
+                </article>
+
+                <article class="summary-card">
+                    <div class="summary-top">
+                        <span class="summary-label">Total Stock Units</span>
+                        <div class="summary-icon purple">▦</div>
+                    </div>
+                    <h2 id="totalStock">—</h2>
+                    <p class="summary-note">Current stock quantity</p>
+                </article>
+
+                <article class="summary-card">
+                    <div class="summary-top">
+                        <span class="summary-label">Inventory Value</span>
+                        <div class="summary-icon green">RM</div>
+                    </div>
+                    <h2 id="inventoryValue">—</h2>
+                    <p class="summary-note">Based on stock cost value</p>
+                </article>
+
+                <article class="summary-card">
+                    <div class="summary-top">
+                        <span class="summary-label">Low Stock Alerts</span>
+                        <div class="summary-icon orange">!</div>
+                    </div>
+                    <h2 id="lowStockCount">—</h2>
+                    <p class="summary-note">
+                        <span id="outOfStockCount">—</span> out of stock
+                    </p>
+                </article>
+
+            </section>
+
+            <section class="charts-grid">
+
+                <article class="panel sales-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h3>Sales vs Purchases</h3>
+                            <p>Completed sales and received purchases</p>
+                        </div>
+
+                        <select id="chartPeriod" class="period-select">
+                            <option value="6">Last 6 Months</option>
+                            <option value="12">Last 12 Months</option>
+                        </select>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="salesPurchaseChart"></canvas>
+                        <div id="salesChartEmpty" class="chart-empty hidden">
+                            No transaction data available.
+                        </div>
+                    </div>
+                </article>
+
+                <article class="panel stock-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h3>Stock Status</h3>
+                            <p>Current inventory distribution</p>
+                        </div>
+                    </div>
+
+                    <div class="stock-chart-container">
+                        <canvas id="stockStatusChart"></canvas>
+                        <div id="stockChartEmpty" class="chart-empty hidden">
+                            No stock data available.
+                        </div>
+                    </div>
+
+                    <div class="stock-legend">
+                        <div>
+                            <span class="legend-dot available"></span>
+                            Available
+                            <strong id="availableCount">0</strong>
+                        </div>
+                        <div>
+                            <span class="legend-dot low"></span>
+                            Low Stock
+                            <strong id="lowCount">0</strong>
+                        </div>
+                        <div>
+                            <span class="legend-dot out"></span>
+                            Out of Stock
+                            <strong id="outCount">0</strong>
+                        </div>
+                    </div>
+                </article>
+
+            </section>
+
+            <section class="bottom-grid">
+
+                <article class="panel low-stock-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h3>Low Stock Products</h3>
+                            <p>Products that need replenishment</p>
+                        </div>
+                        <a href="/inventory.html" class="view-link">View Inventory →</a>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Code</th>
+                                <th>Current Stock</th>
+                                <th>Minimum Stock</th>
+                                <th>Status</th>
+                            </tr>
+                            </thead>
+                            <tbody id="lowStockTable">
+                            <tr>
+                                <td colspan="5" class="table-message">
+                                    Loading inventory...
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="panel activity-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h3>Recent Transactions</h3>
+                            <p>Latest sales and purchase records</p>
+                        </div>
+                    </div>
+
+                    <div id="recentTransactions" class="transaction-list">
+                        <div class="table-message">Loading transactions...</div>
+                    </div>
+                </article>
+
+            </section>
+
+            <footer class="page-footer">
+                SmartStock Inventory Management System
+            </footer>
+
+        </section>
+    </main>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,412 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --background: #f5f7fb;
+    --surface: #ffffff;
+    --text: #172033;
+    --muted: #8791a5;
+    --border: #e8edf4;
+    --sidebar: #101b35;
+    --sidebar-muted: #91a0bb;
+    --success: #16a36a;
+    --warning: #e99a27;
+    --danger: #e45454;
+    --radius: 12px;
+}
+
+body {
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    background: var(--background);
+    color: var(--text);
+    font-size: 14px;
+}
+
+button,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.app-layout {
+    min-height: 100vh;
+    display: flex;
+}
+
+.sidebar {
+    width: 245px;
+    background: var(--sidebar);
+    color: white;
+    padding: 25px 16px 18px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 10px;
+    margin-bottom: 42px;
+}
+
+.brand-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    background: #3477f6;
+    display: grid;
+    place-items: center;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.brand h2 {
+    font-size: 17px;
+    letter-spacing: -0.4px;
+}
+
+.brand span {
+    display: block;
+    margin-top: 4px;
+    color: var(--sidebar-muted);
+    font-size: 11px;
+}
+
+.nav-label {
+    color: #71819e;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.1px;
+    padding: 0 12px;
+    margin: 19px 0 10px;
+}
+
+.navigation {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.nav-link {
+    min-height: 43px;
+    padding: 0 13px;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    color: var(--sidebar-muted);
+    border-radius: 8px;
+    transition: 0.2s;
+    font-size: 13px;
+}
+
+.nav-link:hover {
+    background: #1c2b4b;
+    color: white;
+}
+
+.nav-link.active {
+    background: #2864d9;
+    color: white;
+    font-weight: 600;
+}
+
+.nav-icon {
+    width: 19px;
+    text-align: center;
+    font-size: 17px;
+}
+
+.sidebar-bottom {
+    margin-top: auto;
+    padding: 15px 10px 0;
+}
+
+.sidebar-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #aab7ce;
+    font-size: 11px;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    background: #27c887;
+    border-radius: 50%;
+}
+
+.sidebar-version {
+    margin-top: 13px;
+    color: #667792;
+    font-size: 10px;
+}
+
+.main-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.topbar {
+    height: 70px;
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 0 35px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.breadcrumb {
+    color: #7d8799;
+    font-size: 12px;
+}
+
+.breadcrumb span {
+    margin: 0 9px;
+    color: #c0c7d2;
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.date-display {
+    color: #7d8799;
+    font-size: 12px;
+}
+
+.user-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: #e9f0ff;
+    color: #2864d9;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+}
+
+.mobile-brand {
+    display: none;
+}
+
+.menu-toggle {
+    border: 0;
+    background: transparent;
+    font-size: 20px;
+}
+
+.page-content {
+    max-width: 1600px;
+    margin: auto;
+    padding: 32px 35px;
+}
+
+.page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 25px;
+}
+
+.eyebrow {
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.3px;
+    margin-bottom: 8px;
+}
+
+.page-heading h1 {
+    font-size: 27px;
+    letter-spacing: -0.8px;
+}
+
+.page-description {
+    color: var(--muted);
+    margin-top: 7px;
+    font-size: 13px;
+}
+
+.refresh-button {
+    background: white;
+    color: #475569;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.refresh-button:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 21px;
+    min-width: 0;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.panel-header h3 {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.panel-header p {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.error-message {
+    background: #fff0f0;
+    color: #bd3838;
+    border: 1px solid #ffd6d6;
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    font-size: 12px;
+}
+
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    white-space: nowrap;
+}
+
+th {
+    color: #929bad;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 12px 10px;
+    background: #fafbfe;
+}
+
+td {
+    padding: 14px 10px;
+    border-bottom: 1px solid #f0f2f6;
+    font-size: 11px;
+    color: #475569;
+}
+
+tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.table-message {
+    text-align: center;
+    color: var(--muted);
+    padding: 25px;
+}
+
+.page-footer {
+    color: #a0a8b7;
+    font-size: 10px;
+    text-align: center;
+    padding: 30px 0 10px;
+}
+
+@media (max-width: 900px) {
+    .sidebar {
+        width: 210px;
+    }
+
+    .page-content {
+        padding: 25px 20px;
+    }
+
+    .topbar {
+        padding: 0 20px;
+    }
+}
+
+@media (max-width: 650px) {
+    .sidebar {
+        display: none;
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 20;
+        width: 245px;
+    }
+
+    .sidebar.open {
+        display: flex;
+    }
+
+    .mobile-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .breadcrumb {
+        display: none;
+    }
+
+    .topbar {
+        height: 60px;
+    }
+
+    .page-content {
+        padding: 22px 14px;
+    }
+
+    .page-heading {
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .page-heading h1 {
+        font-size: 23px;
+    }
+
+    .refresh-button {
+        padding: 9px;
+        white-space: nowrap;
+    }
+
+    .date-display {
+        display: none;
+    }
+}
