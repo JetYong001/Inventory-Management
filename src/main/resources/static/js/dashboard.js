@@ -1,4 +1,3 @@
-
 "use strict";
 
 // ========================================
@@ -158,31 +157,19 @@ async function loadDashboard() {
       : [];
 
   if (!apiAvailability.summary) {
-    console.error(
-        "Inventory summary API failed:",
-        summaryResult.reason
-    );
+    console.error("Inventory summary API failed:", summaryResult.reason);
   }
 
   if (!apiAvailability.stock) {
-    console.error(
-        "Stock API failed:",
-        stockResult.reason
-    );
+    console.error("Stock API failed:", stockResult.reason);
   }
 
   if (!apiAvailability.sales) {
-    console.error(
-        "Sales API failed:",
-        salesResult.reason
-    );
+    console.error("Sales API failed:", salesResult.reason);
   }
 
   if (!apiAvailability.purchases) {
-    console.error(
-        "Purchases API failed:",
-        purchasesResult.reason
-    );
+    console.error("Purchases API failed:", purchasesResult.reason);
   }
 
   renderDashboardMetrics(dashboardSummary);
@@ -199,9 +186,7 @@ function getSelectedMonths() {
 
   const months = Number(select?.value || 6);
 
-  return [1, 3, 6, 12].includes(months)
-      ? months
-      : 6;
+  return [1, 3, 6, 12].includes(months) ? months : 6;
 }
 
 function getPeriodLabel(months) {
@@ -252,9 +237,7 @@ function parseDate(value) {
     date = new Date(value);
   }
 
-  return Number.isNaN(date.getTime())
-      ? null
-      : date;
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 // ========================================
@@ -272,9 +255,7 @@ function getPurchaseDate(record) {
 function getTransactionAmount(record) {
   const amount = Number(record.totalAmount ?? 0);
 
-  return Number.isFinite(amount)
-      ? amount
-      : 0;
+  return Number.isFinite(amount) ? amount : 0;
 }
 
 function getTransactionStatus(record) {
@@ -382,8 +363,6 @@ function renderDashboardMetrics(summary) {
     inventoryValueCard
   ] = cards;
 
-  // TOTAL STOCK UNITS
-
   const totalStock = summary?.totalStockQuantity ??
       dashboardStock.reduce((total, product) => {
         return total + Number(product.currentQuantity ?? 0);
@@ -399,8 +378,6 @@ function renderDashboardMetrics(summary) {
           : "Inventory data unavailable"
   );
 
-  // TOTAL SALES
-
   setMetric(
       salesCard,
       apiAvailability.sales
@@ -411,8 +388,6 @@ function renderDashboardMetrics(summary) {
           : "Sales data unavailable"
   );
 
-  // TOTAL PURCHASES
-
   setMetric(
       purchaseCard,
       apiAvailability.purchases
@@ -422,8 +397,6 @@ function renderDashboardMetrics(summary) {
           ? getPeriodLabel(getSelectedMonths())
           : "Purchase data unavailable"
   );
-
-  // INVENTORY VALUE
 
   const inventoryValue = summary?.totalInventoryValue;
 
@@ -609,6 +582,89 @@ function renderStockStatus() {
 }
 
 // ========================================
+// DAILY SALES AND PURCHASES
+// ========================================
+
+function getDailyTotals(records, type) {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const daysInMonth = new Date(
+      year,
+      month + 1,
+      0
+  ).getDate();
+
+  const totals = new Map();
+  const labels = [];
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+
+    const key = [
+      year,
+      String(month + 1).padStart(2, "0"),
+      String(day).padStart(2, "0")
+    ].join("-");
+
+    totals.set(key, 0);
+
+    labels.push({
+      key,
+      label: date.toLocaleDateString("en-MY", {
+        day: "numeric",
+        month: "short"
+      })
+    });
+  }
+
+  const range = getDateRange();
+
+  records.forEach(record => {
+    let date;
+    let accepted;
+
+    if (type === "sales") {
+      date = getSalesDate(record);
+      accepted = isAcceptedSales(record);
+    } else {
+      date = getPurchaseDate(record);
+      accepted = isAcceptedPurchase(record);
+    }
+
+    if (!accepted || !date) {
+      return;
+    }
+
+    if (date < range.start || date > range.end) {
+      return;
+    }
+
+    const key = [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-");
+
+    if (!totals.has(key)) {
+      return;
+    }
+
+    totals.set(
+        key,
+        totals.get(key) + getTransactionAmount(record)
+    );
+  });
+
+  return {
+    labels: labels.map(item => item.label),
+    values: labels.map(item => totals.get(item.key))
+  };
+}
+
+// ========================================
 // MONTHLY SALES AND PURCHASES
 // ========================================
 
@@ -632,8 +688,8 @@ function getMonthlyTotals(records, type, months) {
     labels.push({
       key,
       label: date.toLocaleDateString("en-MY", {
-        month: "short",
-        year: "2-digit"
+        month: "long",
+        year: "numeric"
       })
     });
   }
@@ -698,17 +754,32 @@ function renderSalesPurchaseChart() {
 
   const months = getSelectedMonths();
 
-  const sales = getMonthlyTotals(
-      dashboardSales,
-      "sales",
-      months
-  );
+  let sales;
+  let purchases;
 
-  const purchases = getMonthlyTotals(
-      dashboardPurchases,
-      "purchases",
-      months
-  );
+  if (months === 1) {
+    sales = getDailyTotals(
+        dashboardSales,
+        "sales"
+    );
+
+    purchases = getDailyTotals(
+        dashboardPurchases,
+        "purchases"
+    );
+  } else {
+    sales = getMonthlyTotals(
+        dashboardSales,
+        "sales",
+        months
+    );
+
+    purchases = getMonthlyTotals(
+        dashboardPurchases,
+        "purchases",
+        months
+    );
+  }
 
   const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -730,7 +801,7 @@ function renderSalesPurchaseChart() {
           backgroundColor: "rgba(20, 102, 216, 0.08)",
 
           borderWidth: 2,
-          pointRadius: 3,
+          pointRadius: months === 1 ? 2 : 3,
           pointHoverRadius: 5,
           pointBackgroundColor: chartColours.sales,
 
@@ -747,7 +818,7 @@ function renderSalesPurchaseChart() {
           backgroundColor: "transparent",
 
           borderWidth: 2,
-          pointRadius: 3,
+          pointRadius: months === 1 ? 2 : 3,
           pointHoverRadius: 5,
           pointBackgroundColor: chartColours.purchases,
 
@@ -798,9 +869,13 @@ function renderSalesPurchaseChart() {
             color: chartColours.tick,
 
             font: {
-              size: 10,
+              size: months === 1 ? 9 : 10,
               weight: "600"
-            }
+            },
+
+            autoSkip: false,
+            maxRotation: months === 1 ? 60 : 45,
+            minRotation: 0
           }
         },
 

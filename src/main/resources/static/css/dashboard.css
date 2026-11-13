@@ -142,6 +142,8 @@
 }
 
 .metric-card {
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     min-height: 96px;
     padding: 14px;
@@ -154,13 +156,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    min-height: 16px;
     color: #78899b;
     font-size: 11px;
     font-weight: 400;
     line-height: 1.4;
 }
 
-/* Only style an actual icon, not the last title text */
 .metric-title > span:last-child:not(:first-child):not(:empty) {
     color: #1466d8;
     font-size: 19px;
@@ -173,17 +175,21 @@
 }
 
 .metric-value {
-    display: block;
+    display: flex;
+    align-items: center;
+    min-height: 25px;
     margin: 8px 0 9px;
     color: #132e4b;
-    font-size: clamp(20px, 2.2vw, 25px);
+    font-size: clamp(18px, 2vw, 25px);
     font-weight: 700;
-    line-height: 1;
+    line-height: 1.2;
     letter-spacing: -.6px;
+    white-space: nowrap;
 }
 
 .trend {
     display: block;
+    min-height: 12px;
     color: #0d9575;
     font-size: 10px;
     font-weight: 700;
@@ -282,10 +288,14 @@
     height: 259px;
 }
 
+/* ========================================
+   STOCK STATUS
+======================================== */
+
 .stock-chart-content {
     display: grid;
-    grid-template-columns: minmax(150px, 1fr) 129px;
-    gap: 10px;
+    grid-template-columns: minmax(150px, 1fr) 150px;
+    gap: 12px;
     align-items: center;
     padding-top: 18px;
 }
@@ -319,7 +329,7 @@
 
 .stock-legend {
     display: grid;
-    gap: 17px;
+    gap: 15px;
     padding: 0;
     margin: 0;
     list-style: none;
@@ -327,17 +337,18 @@
 
 .stock-legend li {
     display: grid;
-    grid-template-columns: 8px 1fr auto;
-    gap: 6px;
+    grid-template-columns: 9px 1fr auto;
+    gap: 8px;
     align-items: start;
     color: #6d7e93;
-    font-size: 9px;
-    line-height: 1.15;
+    font-size: 12px;
+    line-height: 1.3;
 }
 
 .stock-legend strong {
     color: #1a344f;
-    font-size: 11px;
+    font-size: 15px;
+    font-weight: 700;
 }
 
 /* ========================================
@@ -399,7 +410,7 @@
     }
 
     .stock-chart-content {
-        grid-template-columns: minmax(145px, 1fr) 135px;
+        grid-template-columns: minmax(145px, 1fr) 150px;
     }
 
     .chart-canvas--line {
