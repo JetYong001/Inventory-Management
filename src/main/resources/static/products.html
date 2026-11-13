@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,80 +20,126 @@
 
         <header class="products-header">
 
-            <button class="menu-button" id="menu-button" type="button"
-                    aria-label="Open navigation"
-                    aria-controls="sidebar"
-                    aria-expanded="false">☰</button>
+            <div class="header-left">
+                <button class="menu-button"
+                        id="menu-button"
+                        type="button"
+                        aria-label="Open navigation"
+                        aria-controls="sidebar"
+                        aria-expanded="false">
+                    ☰
+                </button>
 
-            <div class="page-heading">
-                <p class="workspace-label">COMPANY WORKSPACE</p>
-                <h1>Products</h1>
-                <p class="welcome-text">
-                    Manage your products, pricing and stock information.
-                </p>
+                <div class="page-heading">
+                    <div class="breadcrumb">
+                        <span>Workspace</span>
+                        <span class="breadcrumb-divider">/</span>
+                        <strong>Products</strong>
+                    </div>
+
+                    <h1>Products</h1>
+                    <p>Manage your product catalogue, pricing and stock levels.</p>
+                </div>
             </div>
 
-            <div class="company-profile" aria-label="Current company and role">
-                <div>
+            <div class="company-profile">
+                <div class="company-info">
                     <strong>Acme Stationery Sdn. Bhd.</strong>
                     <span>Company Admin</span>
                 </div>
-                <span class="avatar" aria-hidden="true">A</span>
+
+                <span class="avatar">A</span>
             </div>
 
         </header>
 
+
+        <!-- SUMMARY -->
+
         <section class="product-summary">
 
             <article class="summary-card">
-                <p>Total Products</p>
+                <div class="summary-top">
+                    <span class="summary-label">Total Products</span>
+                    <span class="summary-icon summary-icon-blue">▦</span>
+                </div>
+
                 <strong id="total-products">—</strong>
                 <small>Products in catalogue</small>
             </article>
 
             <article class="summary-card">
-                <p>Active Products</p>
+                <div class="summary-top">
+                    <span class="summary-label">Active Products</span>
+                    <span class="summary-icon summary-icon-green">✓</span>
+                </div>
+
                 <strong id="active-products">—</strong>
                 <small>Currently available products</small>
             </article>
 
             <article class="summary-card">
-                <p>Low Stock Products</p>
+                <div class="summary-top">
+                    <span class="summary-label">Low Stock Products</span>
+                    <span class="summary-icon summary-icon-orange">!</span>
+                </div>
+
                 <strong id="low-stock-products">—</strong>
-                <small>Products at or below minimum stock</small>
+                <small>Products requiring attention</small>
             </article>
 
         </section>
 
-        <div id="page-message" class="page-message" role="alert"></div>
+
+        <!-- MESSAGE -->
+
+        <div id="page-message"
+             class="page-message"
+             role="alert">
+        </div>
+
+
+        <!-- PRODUCT MANAGEMENT -->
 
         <section class="products-panel">
 
             <div class="panel-heading">
+
                 <div>
-                    <h2>Product List</h2>
-                    <p>View and manage your company products.</p>
+                    <span class="section-eyebrow">INVENTORY MANAGEMENT</span>
+                    <h2>Product Catalogue</h2>
+                    <p>View, search and manage all products in your company.</p>
                 </div>
 
                 <button class="primary-button add-product-button"
                         id="add-product-button"
                         type="button">
-                    <span aria-hidden="true">+</span>
+                    <span>+</span>
                     Add Product
                 </button>
+
             </div>
+
+
+            <!-- TOOLBAR -->
 
             <div class="product-toolbar">
 
                 <div class="product-search">
-                    <label for="search-products">Search products</label>
-                    <input type="search"
-                           id="search-products"
-                           placeholder="Search product name or code...">
+                    <label for="search-products">Search</label>
+
+                    <div class="search-input-wrapper">
+                        <span class="search-icon">⌕</span>
+
+                        <input type="search"
+                               id="search-products"
+                               placeholder="Search by product name or code...">
+                    </div>
                 </div>
 
                 <div class="product-filter">
                     <label for="category-filter">Category</label>
+
                     <select id="category-filter">
                         <option value="">All Categories</option>
                     </select>
@@ -102,6 +147,7 @@
 
                 <div class="product-filter">
                     <label for="status-filter">Status</label>
+
                     <select id="status-filter">
                         <option value="all">All Status</option>
                         <option value="active">Active</option>
@@ -111,25 +157,29 @@
 
             </div>
 
+
+            <!-- TABLE -->
+
             <div class="table-container">
 
                 <table class="products-table">
 
                     <thead>
                     <tr>
-                        <th>Product</th>
-                        <th>Category</th>
-                        <th>Cost Price</th>
-                        <th>Selling Price</th>
-                        <th>Stock</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th>PRODUCT</th>
+                        <th>CATEGORY</th>
+                        <th>COST PRICE</th>
+                        <th>SELLING PRICE</th>
+                        <th>STOCK LEVEL</th>
+                        <th>STATUS</th>
+                        <th>ACTIONS</th>
                     </tr>
                     </thead>
 
                     <tbody id="products-table-body">
                     <tr>
                         <td colspan="7" class="table-loading">
+                            <span class="loading-spinner"></span>
                             Loading products...
                         </td>
                     </tr>
@@ -139,20 +189,31 @@
 
             </div>
 
+
+            <!-- PAGINATION -->
+
             <footer class="pagination-footer">
 
                 <p id="pagination-info">Loading...</p>
 
                 <div class="pagination-buttons">
-                    <button type="button" id="previous-page" disabled>
+
+                    <button type="button"
+                            id="previous-page"
+                            disabled>
+                        <span>←</span>
                         Previous
                     </button>
 
                     <span id="current-page">1</span>
 
-                    <button type="button" id="next-page" disabled>
+                    <button type="button"
+                            id="next-page"
+                            disabled>
                         Next
+                        <span>→</span>
                     </button>
+
                 </div>
 
             </footer>
@@ -160,6 +221,7 @@
         </section>
 
     </main>
+
 </div>
 
 
@@ -177,7 +239,7 @@
         <header class="modal-header">
 
             <div>
-                <p class="workspace-label">PRODUCT MANAGEMENT</p>
+                <span class="section-eyebrow">PRODUCT MANAGEMENT</span>
                 <h2 id="modal-title">Add Product</h2>
                 <p id="modal-description">
                     Enter the information for your new product.
@@ -193,84 +255,156 @@
 
         </header>
 
+
         <form id="product-form">
 
-            <div id="form-message" class="form-message" role="alert"></div>
+            <div id="form-message"
+                 class="form-message"
+                 role="alert">
+            </div>
 
-            <div class="product-form-grid">
 
-                <div class="field-group field-full">
-                    <label for="product-name">Product Name *</label>
-                    <input type="text"
-                           id="product-name"
-                           maxlength="150"
-                           placeholder="Enter product name"
-                           required>
+            <div class="form-section">
+
+                <div class="form-section-heading">
+                    <span class="form-section-number">01</span>
+
+                    <div>
+                        <h3>Basic Information</h3>
+                        <p>Product name and classification</p>
+                    </div>
                 </div>
 
-                <div class="field-group field-full">
-                    <label for="product-category">Category *</label>
-                    <select id="product-category" required>
-                        <option value="">Select category</option>
-                    </select>
-                </div>
+                <div class="product-form-grid">
 
-                <div class="field-group field-full">
-                    <label for="product-description">Description</label>
-                    <textarea id="product-description"
-                              maxlength="500"
-                              placeholder="Enter product description"></textarea>
-                </div>
+                    <div class="field-group field-full">
+                        <label for="product-name">Product Name *</label>
 
-                <div class="field-group">
-                    <label for="cost-price">Cost Price (RM) *</label>
-                    <input type="number"
-                           id="cost-price"
-                           min="0"
-                           step="0.01"
-                           placeholder="0.00"
-                           required>
-                </div>
+                        <input type="text"
+                               id="product-name"
+                               maxlength="150"
+                               placeholder="Enter product name"
+                               required>
+                    </div>
 
-                <div class="field-group">
-                    <label for="selling-price">Selling Price (RM) *</label>
-                    <input type="number"
-                           id="selling-price"
-                           min="0"
-                           step="0.01"
-                           placeholder="0.00"
-                           required>
-                </div>
+                    <div class="field-group field-full">
+                        <label for="product-category">Category *</label>
 
-                <div class="field-group">
-                    <label for="minimum-stock">Minimum Stock *</label>
-                    <input type="number"
-                           id="minimum-stock"
-                           min="0"
-                           step="1"
-                           value="5"
-                           required>
-                </div>
+                        <select id="product-category" required>
+                            <option value="">Select category</option>
+                        </select>
+                    </div>
 
-                <div class="field-group opening-stock-field">
-                    <label for="opening-stock">Opening Stock</label>
-                    <input type="number"
-                           id="opening-stock"
-                           min="0"
-                           step="1"
-                           value="0">
-                    <small>Optional initial stock quantity.</small>
-                </div>
+                    <div class="field-group field-full">
+                        <label for="product-description">Description</label>
 
-                <div class="field-group field-full opening-stock-field">
-                    <label for="opening-stock-remarks">Opening Stock Remarks</label>
-                    <input type="text"
-                           id="opening-stock-remarks"
-                           maxlength="500"
-                           placeholder="Optional remarks">
+                        <textarea id="product-description"
+                                  maxlength="500"
+                                  placeholder="Enter product description"></textarea>
+                    </div>
+
                 </div>
 
             </div>
+
+
+            <div class="form-section">
+
+                <div class="form-section-heading">
+                    <span class="form-section-number">02</span>
+
+                    <div>
+                        <h3>Pricing Information</h3>
+                        <p>Set product cost and selling prices</p>
+                    </div>
+                </div>
+
+                <div class="product-form-grid">
+
+                    <div class="field-group">
+                        <label for="cost-price">Cost Price (RM) *</label>
+
+                        <div class="currency-input">
+                            <span>RM</span>
+
+                            <input type="number"
+                                   id="cost-price"
+                                   min="0"
+                                   step="0.01"
+                                   placeholder="0.00"
+                                   required>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="selling-price">Selling Price (RM) *</label>
+
+                        <div class="currency-input">
+                            <span>RM</span>
+
+                            <input type="number"
+                                   id="selling-price"
+                                   min="0"
+                                   step="0.01"
+                                   placeholder="0.00"
+                                   required>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-section">
+
+                <div class="form-section-heading">
+                    <span class="form-section-number">03</span>
+
+                    <div>
+                        <h3>Stock Settings</h3>
+                        <p>Configure minimum and opening stock</p>
+                    </div>
+                </div>
+
+                <div class="product-form-grid">
+
+                    <div class="field-group">
+                        <label for="minimum-stock">Minimum Stock *</label>
+
+                        <input type="number"
+                               id="minimum-stock"
+                               min="0"
+                               step="1"
+                               value="5"
+                               required>
+                    </div>
+
+                    <div class="field-group opening-stock-field">
+                        <label for="opening-stock">Opening Stock</label>
+
+                        <input type="number"
+                               id="opening-stock"
+                               min="0"
+                               step="1"
+                               value="0">
+
+                        <small>Optional initial stock quantity.</small>
+                    </div>
+
+                    <div class="field-group field-full opening-stock-field">
+                        <label for="opening-stock-remarks">Opening Stock Remarks</label>
+
+                        <input type="text"
+                               id="opening-stock-remarks"
+                               maxlength="500"
+                               placeholder="Optional remarks">
+                    </div>
+
+                </div>
+
+            </div>
+
 
             <footer class="modal-footer">
 
