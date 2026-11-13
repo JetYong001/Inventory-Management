@@ -5,71 +5,158 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="SmartStock company inventory dashboard">
   <title>Dashboard | SmartStock</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="dashboard.css">
+
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/sidebar.css">
 </head>
 <body>
+
 <div class="app-shell">
-  <aside class="sidebar" id="sidebar">
-    <a class="sidebar-brand" href="dashboard.html" aria-label="SmartStock dashboard">
-      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span>Smart<span>Stock</span></span>
-    </a>
 
-    <nav class="side-nav" aria-label="Main navigation">
-      <a class="side-nav__item is-active" href="dashboard.html"><span aria-hidden="true">⌂</span> Dashboard</a>
-      <a class="side-nav__item" href="#products"><span aria-hidden="true">◇</span> Products</a>
-      <a class="side-nav__item" href="#partners"><span aria-hidden="true">♙</span> Business Partners</a>
-      <a class="side-nav__item" href="#orders"><span aria-hidden="true">▣</span> Orders</a>
-      <a class="side-nav__item" href="#stock"><span aria-hidden="true">▰</span> Stock <strong class="nav-badge" aria-label="2 low-stock alerts">2</strong></a>
-      <a class="side-nav__item" href="#reports"><span aria-hidden="true">▥</span> Reports & Analytics</a>
-      <a class="side-nav__item" href="#company"><span aria-hidden="true">▦</span> Company & Users</a>
-    </nav>
-
-    <a class="sidebar-logout" href="login.html"><span aria-hidden="true">←</span> Sign out</a>
-  </aside>
+  <div id="sidebar-container"></div>
 
   <main class="dashboard-main">
     <header class="dashboard-header">
-      <button class="menu-button" id="menu-button" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">☰</button>
+      <button class="menu-button" id="menu-button" type="button"
+              aria-label="Open navigation"
+              aria-controls="sidebar"
+              aria-expanded="false">☰</button>
+
       <div>
         <p class="workspace-label">COMPANY WORKSPACE</p>
         <h1>Dashboard</h1>
         <p class="welcome-text">Welcome back, Admin. Here’s your inventory at a glance.</p>
       </div>
+
       <div class="header-actions">
         <div class="company-profile" aria-label="Current company and role">
-          <div><strong>Acme Stationery Sdn. Bhd.</strong><span>Company Admin</span></div>
+          <div>
+            <strong>Acme Stationery Sdn. Bhd.</strong>
+            <span>Company Admin</span>
+          </div>
           <span class="avatar" aria-hidden="true">A</span>
         </div>
-        <label class="date-control" for="range-select"><span aria-hidden="true">▣</span><span class="sr-only">Dashboard date range</span><select id="range-select"><option value="six-months">Jan – Jun 2026</option><option value="quarter">Apr – Jun 2026</option><option value="year">Jul 2025 – Jun 2026</option></select></label>
+
+        <label class="date-control" for="range-select">
+          <span aria-hidden="true">▣</span>
+          <span class="sr-only">Dashboard date range</span>
+          <select id="range-select">
+            <option value="six-months">Jan – Jun 2026</option>
+            <option value="quarter">Apr – Jun 2026</option>
+            <option value="year">Jul 2025 – Jun 2026</option>
+          </select>
+        </label>
       </div>
     </header>
 
     <section class="metric-grid" aria-label="Inventory summary">
-      <article class="metric-card"><div class="metric-title"><span>Total stock units</span><span aria-hidden="true">◇</span></div><strong class="metric-value">12,500</strong><small class="trend trend--up">↑ 8% <span>vs previous 6 months</span></small></article>
-      <article class="metric-card"><div class="metric-title"><span>Total sales</span><span aria-hidden="true">▱</span></div><strong class="metric-value">RM 125,500</strong><small class="trend trend--up">↑ 12% <span>vs previous 6 months</span></small></article>
-      <article class="metric-card"><div class="metric-title"><span>Total purchases</span><span aria-hidden="true">▤</span></div><strong class="metric-value">RM 98,000</strong><small class="trend trend--up">↑ 6% <span>vs previous 6 months</span></small></article>
-      <article class="metric-card"><div class="metric-title"><span>Profit margin</span><span aria-hidden="true">%</span></div><strong class="metric-value">18.5%</strong><small class="trend trend--up">↑ 1.2 pp <span>vs previous 6 months</span></small></article>
+      <article class="metric-card">
+        <div class="metric-title">
+          <span>Total stock units</span>
+          <span aria-hidden="true">◇</span>
+        </div>
+        <strong class="metric-value">12,500</strong>
+        <small class="trend trend--up">↑ 8% <span>vs previous 6 months</span></small>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-title">
+          <span>Total sales</span>
+          <span aria-hidden="true">▱</span>
+        </div>
+        <strong class="metric-value">RM 125,500</strong>
+        <small class="trend trend--up">↑ 12% <span>vs previous 6 months</span></small>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-title">
+          <span>Total purchases</span>
+          <span aria-hidden="true">▤</span>
+        </div>
+        <strong class="metric-value">RM 98,000</strong>
+        <small class="trend trend--up">↑ 6% <span>vs previous 6 months</span></small>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-title">
+          <span>Profit margin</span>
+          <span aria-hidden="true">%</span>
+        </div>
+        <strong class="metric-value">18.5%</strong>
+        <small class="trend trend--up">↑ 1.2 pp <span>vs previous 6 months</span></small>
+      </article>
     </section>
 
     <section class="dashboard-charts" aria-label="Sales and inventory charts">
+
       <article class="chart-card chart-card--wide">
-        <div class="chart-heading"><div><h2>Sales vs purchases</h2><p>Monthly totals · MYR</p></div><div class="chart-legend" aria-label="Chart legend"><span><i class="legend-dot legend-dot--sales"></i>Sales</span><span><i class="legend-dot legend-dot--purchases"></i>Purchases</span></div></div>
-        <div class="chart-canvas chart-canvas--line"><canvas id="sales-purchases-chart" role="img" aria-label="Line chart comparing monthly sales and purchases in Malaysian Ringgit"></canvas></div>
-      </article>
-      <article class="chart-card chart-card--stock">
-        <div class="chart-heading"><div><h2>Stock status</h2><p>Availability across 100 products</p></div></div>
-        <div class="stock-chart-content">
-          <div class="chart-canvas chart-canvas--doughnut"><canvas id="stock-status-chart" role="img" aria-label="Doughnut chart showing 78 in-stock, 12 low-stock, and 10 out-of-stock products"></canvas><div class="doughnut-centre"><strong>78%</strong><span>In stock</span></div></div>
-          <ul class="stock-legend"><li><i class="legend-dot legend-dot--in-stock"></i><span>In stock<br>products</span><strong>78</strong></li><li><i class="legend-dot legend-dot--low-stock"></i><span>Low stock<br>products</span><strong>12</strong></li><li><i class="legend-dot legend-dot--out-stock"></i><span>Out of stock<br>products</span><strong>10</strong></li></ul>
+        <div class="chart-heading">
+          <div>
+            <h2>Sales vs purchases</h2>
+            <p>Monthly totals · MYR</p>
+          </div>
+
+          <div class="chart-legend" aria-label="Chart legend">
+            <span><i class="legend-dot legend-dot--sales"></i>Sales</span>
+            <span><i class="legend-dot legend-dot--purchases"></i>Purchases</span>
+          </div>
+        </div>
+
+        <div class="chart-canvas chart-canvas--line">
+          <canvas id="sales-purchases-chart" role="img"
+                  aria-label="Line chart comparing monthly sales and purchases in Malaysian Ringgit"></canvas>
         </div>
       </article>
+
+      <article class="chart-card chart-card--stock">
+        <div class="chart-heading">
+          <div>
+            <h2>Stock status</h2>
+            <p>Availability across 100 products</p>
+          </div>
+        </div>
+
+        <div class="stock-chart-content">
+          <div class="chart-canvas chart-canvas--doughnut">
+            <canvas id="stock-status-chart" role="img"
+                    aria-label="Doughnut chart showing 78 in-stock, 12 low-stock, and 10 out-of-stock products"></canvas>
+
+            <div class="doughnut-centre">
+              <strong>78%</strong>
+              <span>In stock</span>
+            </div>
+          </div>
+
+          <ul class="stock-legend">
+            <li>
+              <i class="legend-dot legend-dot--in-stock"></i>
+              <span>In stock<br>products</span>
+              <strong>78</strong>
+            </li>
+
+            <li>
+              <i class="legend-dot legend-dot--low-stock"></i>
+              <span>Low stock<br>products</span>
+              <strong>12</strong>
+            </li>
+
+            <li>
+              <i class="legend-dot legend-dot--out-stock"></i>
+              <span>Out of stock<br>products</span>
+              <strong>10</strong>
+            </li>
+          </ul>
+        </div>
+      </article>
+
     </section>
   </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js"></script>
-<script src="dashboard.js"></script>
+<script src="/js/dashboard.js"></script>
+<script src="/js/sidebar.js"></script>
+
 </body>
 </html>
