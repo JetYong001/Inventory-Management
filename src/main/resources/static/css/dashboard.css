@@ -1,3 +1,4 @@
+
 .sr-only {
     position: absolute;
     width: 1px;
@@ -107,6 +108,7 @@
 }
 
 .date-control select {
+    width: 100%;
     height: 100%;
     padding: 0;
     border: 0;
@@ -129,6 +131,10 @@
     font-size: 22px;
 }
 
+/* ========================================
+   METRIC CARDS
+======================================== */
+
 .metric-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -136,6 +142,7 @@
 }
 
 .metric-card {
+    min-width: 0;
     min-height: 96px;
     padding: 14px;
     border: 1px solid #dce4ed;
@@ -149,11 +156,20 @@
     align-items: center;
     color: #78899b;
     font-size: 11px;
+    font-weight: 400;
+    line-height: 1.4;
 }
 
-.metric-title > span:last-child {
+/* Only style an actual icon, not the last title text */
+.metric-title > span:last-child:not(:first-child):not(:empty) {
     color: #1466d8;
     font-size: 19px;
+}
+
+.metric-title > span:first-child {
+    color: #78899b;
+    font-size: 11px;
+    font-weight: 400;
 }
 
 .metric-value {
@@ -161,11 +177,13 @@
     margin: 8px 0 9px;
     color: #132e4b;
     font-size: clamp(20px, 2.2vw, 25px);
+    font-weight: 700;
     line-height: 1;
     letter-spacing: -.6px;
 }
 
 .trend {
+    display: block;
     color: #0d9575;
     font-size: 10px;
     font-weight: 700;
@@ -177,6 +195,10 @@
     font-size: 8px;
     letter-spacing: .55px;
 }
+
+/* ========================================
+   CHART LAYOUT
+======================================== */
 
 .dashboard-charts {
     display: grid;
@@ -317,6 +339,10 @@
     color: #1a344f;
     font-size: 11px;
 }
+
+/* ========================================
+   RESPONSIVE
+======================================== */
 
 @media (max-width: 1080px) {
     .metric-grid {
