@@ -4,279 +4,466 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartStock | Dashboard</title>
+    <meta name="description" content="SmartStock company inventory dashboard">
+
+    <title>Dashboard | SmartStock</title>
 
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/dashboard.css">
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js"></script>
     <script src="/js/api.js" defer></script>
     <script src="/js/dashboard.js" defer></script>
 </head>
+
 <body>
 
-<div class="app-layout">
+<div class="app-shell">
 
-    <aside class="sidebar">
-        <div class="brand">
-            <div class="brand-icon">S</div>
-            <div>
-                <h2>SmartStock</h2>
-                <span>Inventory System</span>
-            </div>
-        </div>
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
 
-        <div class="nav-label">WORKSPACE</div>
+        <a class="sidebar-brand" href="/dashboard.html" aria-label="SmartStock dashboard">
+            <span class="brand-mark" aria-hidden="true">
+                <i></i>
+                <i></i>
+                <i></i>
+            </span>
 
-        <nav class="navigation">
-            <a class="nav-link active" href="/dashboard.html">
-                <span class="nav-icon">▦</span>
+            <span>Smart<span>Stock</span></span>
+        </a>
+
+        <div class="sidebar-section-label">WORKSPACE</div>
+
+        <nav class="side-nav" aria-label="Workspace navigation">
+
+            <a class="side-nav__item is-active" href="/dashboard.html">
+                <span aria-hidden="true">⌂</span>
                 Dashboard
             </a>
-            <a class="nav-link" href="/products.html">
-                <span class="nav-icon">▣</span>
+
+            <a class="side-nav__item" href="/products.html">
+                <span aria-hidden="true">◇</span>
                 Products
             </a>
-            <a class="nav-link" href="/categories.html">
-                <span class="nav-icon">▤</span>
+
+            <a class="side-nav__item" href="/categories.html">
+                <span aria-hidden="true">▤</span>
                 Categories
             </a>
-            <a class="nav-link" href="/suppliers.html">
-                <span class="nav-icon">♧</span>
+
+            <a class="side-nav__item" href="/suppliers.html">
+                <span aria-hidden="true">♙</span>
                 Suppliers
             </a>
-            <a class="nav-link" href="/customers.html">
-                <span class="nav-icon">♙</span>
+
+            <a class="side-nav__item" href="/customers.html">
+                <span aria-hidden="true">♧</span>
                 Customers
             </a>
+
         </nav>
 
-        <div class="nav-label">TRANSACTIONS</div>
+        <div class="sidebar-section-label">TRANSACTIONS</div>
 
-        <nav class="navigation">
-            <a class="nav-link" href="/purchases.html">
-                <span class="nav-icon">↓</span>
+        <nav class="side-nav" aria-label="Transaction navigation">
+
+            <a class="side-nav__item" href="/purchases.html">
+                <span aria-hidden="true">↓</span>
                 Purchases
             </a>
-            <a class="nav-link" href="/sales.html">
-                <span class="nav-icon">↑</span>
+
+            <a class="side-nav__item" href="/sales.html">
+                <span aria-hidden="true">↑</span>
                 Sales
             </a>
-            <a class="nav-link" href="/inventory.html">
-                <span class="nav-icon">▦</span>
+
+            <a class="side-nav__item" href="/inventory.html">
+                <span aria-hidden="true">▰</span>
                 Inventory
+
+                <strong
+                        class="nav-badge hidden"
+                        id="lowStockBadge"
+                        aria-label="Low stock alerts">
+                    0
+                </strong>
             </a>
+
         </nav>
 
-        <div class="nav-label">ANALYTICS</div>
+        <div class="sidebar-section-label">ANALYTICS</div>
 
-        <nav class="navigation">
-            <a class="nav-link" href="/reports.html">
-                <span class="nav-icon">▥</span>
-                Reports
+        <nav class="side-nav" aria-label="Analytics navigation">
+
+            <a class="side-nav__item" href="/reports.html">
+                <span aria-hidden="true">▥</span>
+                Reports & Analytics
             </a>
+
         </nav>
 
         <div class="sidebar-bottom">
+
             <div class="sidebar-status">
                 <span class="status-dot"></span>
                 System Connected
             </div>
-            <div class="sidebar-version">SmartStock v1.0</div>
+
+            <div class="sidebar-version">
+                SmartStock Inventory System
+            </div>
+
         </div>
+
     </aside>
 
-    <main class="main-content">
 
-        <header class="topbar">
-            <div class="mobile-brand">
-                <button id="menuToggle" class="menu-toggle">☰</button>
-                <strong>SmartStock</strong>
-            </div>
+    <!-- MAIN CONTENT -->
+    <main class="dashboard-main">
 
-            <div class="breadcrumb">
-                Workspace <span>/</span> Dashboard
-            </div>
+        <!-- HEADER -->
+        <header class="dashboard-header">
 
-            <div class="topbar-right">
-                <div class="date-display" id="currentDate">Loading date...</div>
-                <div class="user-avatar">A</div>
-            </div>
-        </header>
+            <div class="header-left">
 
-        <section class="page-content">
+                <button
+                        class="menu-button"
+                        id="menu-button"
+                        type="button"
+                        aria-label="Open navigation"
+                        aria-controls="sidebar"
+                        aria-expanded="false">
+                    ☰
+                </button>
 
-            <div class="page-heading">
-                <div>
-                    <p class="eyebrow">OVERVIEW</p>
+                <div class="header-title">
+
+                    <p class="workspace-label">
+                        COMPANY WORKSPACE
+                    </p>
+
                     <h1>Dashboard</h1>
-                    <p class="page-description">
+
+                    <p class="welcome-text">
                         Monitor your inventory and business activities.
                     </p>
+
                 </div>
 
-                <button class="refresh-button" id="refreshButton">
-                    ↻ Refresh Data
-                </button>
             </div>
 
-            <div id="dashboardError" class="error-message hidden"></div>
 
-            <section class="summary-grid">
+            <div class="header-actions">
 
-                <article class="summary-card">
-                    <div class="summary-top">
-                        <span class="summary-label">Total Products</span>
-                        <div class="summary-icon blue">▣</div>
+                <div class="company-profile">
+
+                    <div class="company-information">
+                        <strong>SmartStock</strong>
+                        <span>Inventory Management</span>
                     </div>
-                    <h2 id="totalProducts">—</h2>
-                    <p class="summary-note">Registered products</p>
+
+                    <span class="avatar" aria-hidden="true">S</span>
+
+                </div>
+
+                <label class="date-control" for="range-select">
+
+                    <span aria-hidden="true">▣</span>
+
+                    <span class="sr-only">
+                        Dashboard date range
+                    </span>
+
+                    <select id="range-select">
+                        <option value="6">Last 6 Months</option>
+                        <option value="3">Last 3 Months</option>
+                        <option value="12">Last 12 Months</option>
+                    </select>
+
+                </label>
+
+            </div>
+
+        </header>
+
+
+        <!-- DASHBOARD CONTENT -->
+        <section class="dashboard-content">
+
+            <div class="dashboard-toolbar">
+
+                <div>
+                    <p class="content-label">BUSINESS OVERVIEW</p>
+                    <h2>Overview</h2>
+                </div>
+
+                <div class="toolbar-actions">
+
+                    <span class="current-date" id="currentDate">
+                        Loading date...
+                    </span>
+
+                    <button
+                            class="refresh-button"
+                            id="refreshButton"
+                            type="button">
+
+                        <span class="refresh-icon">↻</span>
+                        Refresh Data
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- ERROR MESSAGE -->
+            <div
+                    class="dashboard-error hidden"
+                    id="dashboardError"
+                    role="alert">
+            </div>
+
+
+            <!-- SUMMARY CARDS -->
+            <section class="metric-grid" aria-label="Inventory summary">
+
+                <article class="metric-card">
+
+                    <div class="metric-title">
+                        <span>Total Stock Units</span>
+
+                        <span class="metric-icon metric-icon--blue">
+                            ◇
+                        </span>
+                    </div>
+
+                    <strong class="metric-value" id="totalStock">
+                        —
+                    </strong>
+
+                    <small class="metric-description">
+                        Current stock quantity
+                    </small>
+
                 </article>
 
-                <article class="summary-card">
-                    <div class="summary-top">
-                        <span class="summary-label">Total Stock Units</span>
-                        <div class="summary-icon purple">▦</div>
+
+                <article class="metric-card">
+
+                    <div class="metric-title">
+                        <span>Total Sales</span>
+
+                        <span class="metric-icon metric-icon--green">
+                            ↗
+                        </span>
                     </div>
-                    <h2 id="totalStock">—</h2>
-                    <p class="summary-note">Current stock quantity</p>
+
+                    <strong class="metric-value" id="totalSales">
+                        —
+                    </strong>
+
+                    <small class="metric-description">
+                        Completed sales transactions
+                    </small>
+
                 </article>
 
-                <article class="summary-card">
-                    <div class="summary-top">
-                        <span class="summary-label">Inventory Value</span>
-                        <div class="summary-icon green">RM</div>
+
+                <article class="metric-card">
+
+                    <div class="metric-title">
+                        <span>Total Purchases</span>
+
+                        <span class="metric-icon metric-icon--purple">
+                            ↙
+                        </span>
                     </div>
-                    <h2 id="inventoryValue">—</h2>
-                    <p class="summary-note">Based on stock cost value</p>
+
+                    <strong class="metric-value" id="totalPurchases">
+                        —
+                    </strong>
+
+                    <small class="metric-description">
+                        Received purchase transactions
+                    </small>
+
                 </article>
 
-                <article class="summary-card">
-                    <div class="summary-top">
-                        <span class="summary-label">Low Stock Alerts</span>
-                        <div class="summary-icon orange">!</div>
+
+                <article class="metric-card">
+
+                    <div class="metric-title">
+                        <span>Inventory Value</span>
+
+                        <span class="metric-icon metric-icon--orange">
+                            RM
+                        </span>
                     </div>
-                    <h2 id="lowStockCount">—</h2>
-                    <p class="summary-note">
-                        <span id="outOfStockCount">—</span> out of stock
-                    </p>
+
+                    <strong class="metric-value" id="inventoryValue">
+                        —
+                    </strong>
+
+                    <small class="metric-description">
+                        Based on current cost price
+                    </small>
+
                 </article>
 
             </section>
 
-            <section class="charts-grid">
 
-                <article class="panel sales-panel">
-                    <div class="panel-header">
+            <!-- CHARTS -->
+            <section class="dashboard-charts" aria-label="Sales and inventory charts">
+
+                <!-- SALES VS PURCHASES -->
+                <article class="chart-card chart-card--wide">
+
+                    <div class="chart-heading">
+
                         <div>
-                            <h3>Sales vs Purchases</h3>
-                            <p>Completed sales and received purchases</p>
+                            <h2>Sales vs Purchases</h2>
+                            <p>Monthly transaction totals · MYR</p>
                         </div>
 
-                        <select id="chartPeriod" class="period-select">
-                            <option value="6">Last 6 Months</option>
-                            <option value="12">Last 12 Months</option>
-                        </select>
+                        <div class="chart-legend">
+
+                            <span>
+                                <i class="legend-dot legend-dot--sales"></i>
+                                Sales
+                            </span>
+
+                            <span>
+                                <i class="legend-dot legend-dot--purchases"></i>
+                                Purchases
+                            </span>
+
+                        </div>
+
                     </div>
 
-                    <div class="chart-container">
-                        <canvas id="salesPurchaseChart"></canvas>
-                        <div id="salesChartEmpty" class="chart-empty hidden">
+                    <div class="chart-canvas chart-canvas--line">
+
+                        <canvas
+                                id="sales-purchases-chart"
+                                role="img"
+                                aria-label="Monthly sales and purchases chart">
+                        </canvas>
+
+                        <div
+                                class="chart-empty hidden"
+                                id="salesChartEmpty">
                             No transaction data available.
                         </div>
+
                     </div>
+
                 </article>
 
-                <article class="panel stock-panel">
-                    <div class="panel-header">
+
+                <!-- STOCK STATUS -->
+                <article class="chart-card chart-card--stock">
+
+                    <div class="chart-heading">
+
                         <div>
-                            <h3>Stock Status</h3>
+                            <h2>Stock Status</h2>
                             <p>Current inventory distribution</p>
                         </div>
+
                     </div>
 
-                    <div class="stock-chart-container">
-                        <canvas id="stockStatusChart"></canvas>
-                        <div id="stockChartEmpty" class="chart-empty hidden">
-                            No stock data available.
+                    <div class="stock-chart-content">
+
+                        <div class="chart-canvas chart-canvas--doughnut">
+
+                            <canvas
+                                    id="stock-status-chart"
+                                    role="img"
+                                    aria-label="Inventory stock status chart">
+                            </canvas>
+
+                            <div class="doughnut-centre">
+
+                                <strong id="inStockPercentage">0%</strong>
+
+                                <span>In Stock</span>
+
+                            </div>
+
                         </div>
+
+
+                        <ul class="stock-legend">
+
+                            <li>
+
+                                <i class="legend-dot legend-dot--in-stock"></i>
+
+                                <span>
+                                    In Stock
+                                    <small>Products</small>
+                                </span>
+
+                                <strong id="availableCount">0</strong>
+
+                            </li>
+
+
+                            <li>
+
+                                <i class="legend-dot legend-dot--low-stock"></i>
+
+                                <span>
+                                    Low Stock
+                                    <small>Products</small>
+                                </span>
+
+                                <strong id="lowCount">0</strong>
+
+                            </li>
+
+
+                            <li>
+
+                                <i class="legend-dot legend-dot--out-stock"></i>
+
+                                <span>
+                                    Out of Stock
+                                    <small>Products</small>
+                                </span>
+
+                                <strong id="outCount">0</strong>
+
+                            </li>
+
+                        </ul>
+
                     </div>
 
-                    <div class="stock-legend">
-                        <div>
-                            <span class="legend-dot available"></span>
-                            Available
-                            <strong id="availableCount">0</strong>
-                        </div>
-                        <div>
-                            <span class="legend-dot low"></span>
-                            Low Stock
-                            <strong id="lowCount">0</strong>
-                        </div>
-                        <div>
-                            <span class="legend-dot out"></span>
-                            Out of Stock
-                            <strong id="outCount">0</strong>
-                        </div>
+                    <div
+                            class="chart-empty hidden"
+                            id="stockChartEmpty">
+                        No stock data available.
                     </div>
+
                 </article>
 
             </section>
 
-            <section class="bottom-grid">
 
-                <article class="panel low-stock-panel">
-                    <div class="panel-header">
-                        <div>
-                            <h3>Low Stock Products</h3>
-                            <p>Products that need replenishment</p>
-                        </div>
-                        <a href="/inventory.html" class="view-link">View Inventory →</a>
-                    </div>
-
-                    <div class="table-wrapper">
-                        <table>
-                            <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Code</th>
-                                <th>Current Stock</th>
-                                <th>Minimum Stock</th>
-                                <th>Status</th>
-                            </tr>
-                            </thead>
-                            <tbody id="lowStockTable">
-                            <tr>
-                                <td colspan="5" class="table-message">
-                                    Loading inventory...
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </article>
-
-                <article class="panel activity-panel">
-                    <div class="panel-header">
-                        <div>
-                            <h3>Recent Transactions</h3>
-                            <p>Latest sales and purchase records</p>
-                        </div>
-                    </div>
-
-                    <div id="recentTransactions" class="transaction-list">
-                        <div class="table-message">Loading transactions...</div>
-                    </div>
-                </article>
-
-            </section>
-
-            <footer class="page-footer">
+            <!-- FOOTER -->
+            <footer class="dashboard-footer">
                 SmartStock Inventory Management System
             </footer>
 
         </section>
+
     </main>
+
 </div>
 
 </body>
