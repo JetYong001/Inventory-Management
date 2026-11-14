@@ -24,57 +24,48 @@ public class CategoryController {
         this.categoryService = categoryService;
     }
 
-    // Create Category
     @PostMapping
     public ResponseEntity<CategoryResponse> createCategory(
             @Valid @RequestBody CategoryRequest request
     ) {
+        CategoryResponse response =
+                categoryService.createCategory(request);
 
-        CategoryResponse response = categoryService.createCategory(request);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
     }
 
-    // Get All Categories
     @GetMapping
     public ResponseEntity<List<CategoryResponse>> getAllCategories() {
-
-        List<CategoryResponse> categories =
-                categoryService.getAllCategories();
-
-        return ResponseEntity.ok(categories);
+        return ResponseEntity.ok(
+                categoryService.getAllCategories()
+        );
     }
 
-    // Get Category by ID
     @GetMapping("/{id}")
     public ResponseEntity<CategoryResponse> getCategoryById(
             @PathVariable Long id
     ) {
-
-        CategoryResponse response = categoryService.getCategoryById(id);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                categoryService.getCategoryById(id)
+        );
     }
 
-    // Update Category @PutMapping("/{id}")
-
+    @PutMapping("/{id}")
     public ResponseEntity<CategoryResponse> updateCategory(
             @PathVariable Long id,
             @Valid @RequestBody CategoryRequest request
     ) {
-
-        CategoryResponse response =
-                categoryService.updateCategory(id, request);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                categoryService.updateCategory(id, request)
+        );
     }
 
-    // Delete Category
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCategory(
             @PathVariable Long id
     ) {
-
         categoryService.deleteCategory(id);
 
         return ResponseEntity.noContent().build();
@@ -84,10 +75,8 @@ public class CategoryController {
     public ResponseEntity<CategoryDetailResponse> getCategoryWithProducts(
             @PathVariable Long id
     ) {
-
-        CategoryDetailResponse response =
-                categoryService.getCategoryWithProducts(id);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                categoryService.getCategoryWithProducts(id)
+        );
     }
 }
