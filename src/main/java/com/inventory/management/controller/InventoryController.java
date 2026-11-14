@@ -67,8 +67,6 @@ public class InventoryController {
 
     // LOW STOCK
 
-    // LOW STOCK
-
     @GetMapping("/low-stock")
     public ResponseEntity<List<StockBalanceResponse>> getLowStockProducts() {
 

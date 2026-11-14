@@ -14,6 +14,10 @@ import java.time.LocalDateTime;
                 @UniqueConstraint(
                         name = "uk_supplier_refund_number",
                         columnNames = "refund_number"
+                ),
+                @UniqueConstraint(
+                        name = "uk_supplier_refund_idempotency_key",
+                        columnNames = "idempotency_key"
                 )
         }
 )
@@ -46,6 +50,12 @@ public class SupplierRefund {
     @Column(length = 500)
     private String remarks;
 
+    @Column(name = "idempotency_key", length = 100)
+    private String idempotencyKey;
+
+    @Column(name = "request_hash", length = 64)
+    private String requestHash;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -54,7 +64,9 @@ public class SupplierRefund {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
 
         if (refundDate == null) {
             refundDate = LocalDate.now();
@@ -119,6 +131,22 @@ public class SupplierRefund {
 
     public void setRemarks(String remarks) {
         this.remarks = remarks;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
+
+    public String getRequestHash() {
+        return requestHash;
+    }
+
+    public void setRequestHash(String requestHash) {
+        this.requestHash = requestHash;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -1,4 +1,3 @@
-
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.CustomerRefundRequest;
@@ -13,14 +12,20 @@ import com.inventory.management.repository.CustomerRefundRepository;
 import com.inventory.management.repository.CustomerRepository;
 import com.inventory.management.util.BusinessCodeGenerator;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)
@@ -42,10 +47,26 @@ public class CustomerRefundService {
         this.refundRepository = refundRepository;
     }
 
-    @Transactional
-    public CustomerRefundResponse createRefund(CustomerRefundRequest request) {
+    // ========================================
+    // CREATE CUSTOMER REFUND
+    // ========================================
 
+    @Transactional
+    public CustomerRefundResponse createRefund(
+            CustomerRefundRequest request,
+            String rawIdempotencyKey
+    ) {
         validateRequest(request);
+
+        String idempotencyKey = normalizeIdempotencyKey(rawIdempotencyKey);
+        String requestHash = createRequestHash(request);
+
+        Optional<CustomerRefundResponse> existingRefund =
+                findExistingRefund(idempotencyKey, requestHash);
+
+        if (existingRefund.isPresent()) {
+            return existingRefund.get();
+        }
 
         Customer customer = customerRepository.findByIdForUpdate(
                 request.getCustomerId()
@@ -53,6 +74,13 @@ public class CustomerRefundService {
                 HttpStatus.NOT_FOUND,
                 "Customer not found"
         ));
+
+        // Check again after locking the customer.
+        existingRefund = findExistingRefund(idempotencyKey, requestHash);
+
+        if (existingRefund.isPresent()) {
+            return existingRefund.get();
+        }
 
         List<CustomerCreditTransaction> transactions =
                 creditTransactionRepository
@@ -83,17 +111,12 @@ public class CustomerRefundService {
                         ? request.getRefundDate()
                         : LocalDate.now()
         );
-        refund.setReferenceNumber(request.getReferenceNumber());
-        refund.setRemarks(request.getRemarks());
+        refund.setReferenceNumber(normalizeOptional(request.getReferenceNumber()));
+        refund.setRemarks(normalizeOptional(request.getRemarks()));
+        refund.setIdempotencyKey(idempotencyKey);
+        refund.setRequestHash(requestHash);
 
-        CustomerRefund savedRefund =
-                refundRepository.saveAndFlush(refund);
-
-        savedRefund.setRefundNumber(
-                BusinessCodeGenerator.format("CRF", savedRefund.getId())
-        );
-
-        savedRefund = refundRepository.saveAndFlush(savedRefund);
+        CustomerRefund savedRefund = saveRefund(refund);
 
         CustomerCreditTransaction ledgerTransaction =
                 new CustomerCreditTransaction();
@@ -113,11 +136,17 @@ public class CustomerRefundService {
         CustomerCreditTransaction savedLedger =
                 creditTransactionRepository.save(ledgerTransaction);
 
-        return convertToResponse(savedRefund, savedLedger.getId());
+        return convertToResponse(
+                savedRefund,
+                savedLedger.getId()
+        );
     }
 
-    public List<CustomerRefundResponse> getCustomerRefunds(Long customerId) {
+    // ========================================
+    // GET CUSTOMER REFUNDS
+    // ========================================
 
+    public List<CustomerRefundResponse> getCustomerRefunds(Long customerId) {
         if (customerId == null || customerId <= 0) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -136,7 +165,6 @@ public class CustomerRefundService {
                 .findByCustomerIdOrderByCreatedAtDesc(customerId)
                 .stream()
                 .map(refund -> {
-
                     CustomerCreditTransaction ledgerTransaction =
                             creditTransactionRepository
                                     .findByReferenceNumberAndTransactionType(
@@ -157,8 +185,122 @@ public class CustomerRefundService {
                 .toList();
     }
 
-    private void validateRequest(CustomerRefundRequest request) {
+    // ========================================
+    // IDEMPOTENCY
+    // ========================================
 
+    private String normalizeIdempotencyKey(String key) {
+        if (key == null || key.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Idempotency-Key header is required"
+            );
+        }
+
+        String normalized = key.trim();
+
+        if (normalized.length() > 100) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Idempotency-Key cannot exceed 100 characters"
+            );
+        }
+
+        return normalized;
+    }
+
+    private String createRequestHash(CustomerRefundRequest request) {
+        String refundDate = request.getRefundDate() == null
+                ? ""
+                : request.getRefundDate().toString();
+
+        String canonicalRequest = String.join("|",
+                request.getCustomerId().toString(),
+                request.getAmount().stripTrailingZeros().toPlainString(),
+                request.getPaymentMethod().name(),
+                refundDate,
+                normalizeOptional(request.getReferenceNumber()),
+                normalizeOptional(request.getRemarks())
+        );
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+            byte[] hash = digest.digest(
+                    canonicalRequest.getBytes(StandardCharsets.UTF_8)
+            );
+
+            return HexFormat.of().formatHex(hash);
+
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(
+                    "SHA-256 algorithm is not available",
+                    exception
+            );
+        }
+    }
+
+    private Optional<CustomerRefundResponse> findExistingRefund(
+            String idempotencyKey,
+            String requestHash
+    ) {
+        return refundRepository.findByIdempotencyKey(idempotencyKey)
+                .map(existingRefund -> {
+                    if (!requestHash.equals(existingRefund.getRequestHash())) {
+                        throw new ResponseStatusException(
+                                HttpStatus.CONFLICT,
+                                "This Idempotency-Key has already been used with a different refund request"
+                        );
+                    }
+
+                    CustomerCreditTransaction ledgerTransaction =
+                            creditTransactionRepository
+                                    .findByReferenceNumberAndTransactionType(
+                                            existingRefund.getRefundNumber(),
+                                            CustomerCreditTransactionType.REFUND
+                                    );
+
+                    Long ledgerTransactionId =
+                            ledgerTransaction != null
+                                    ? ledgerTransaction.getId()
+                                    : null;
+
+                    return convertToResponse(
+                            existingRefund,
+                            ledgerTransactionId
+                    );
+                });
+    }
+
+    private String normalizeOptional(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private CustomerRefund saveRefund(CustomerRefund refund) {
+        try {
+            CustomerRefund savedRefund =
+                    refundRepository.saveAndFlush(refund);
+
+            savedRefund.setRefundNumber(
+                    BusinessCodeGenerator.format("CRF", savedRefund.getId())
+            );
+
+            return refundRepository.saveAndFlush(savedRefund);
+
+        } catch (DataIntegrityViolationException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Refund could not be saved because the request key or refund number conflicts with an existing record",
+                    exception
+            );
+        }
+    }
+
+    // ========================================
+    // VALIDATION
+    // ========================================
+
+    private void validateRequest(CustomerRefundRequest request) {
         if (request == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -187,8 +329,7 @@ public class CustomerRefundService {
                 || amount.precision() - amount.scale() > 10) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Refund amount supports up to 10 integer digits "
-                            + "and 2 decimal places"
+                    "Refund amount supports up to 10 integer digits and 2 decimal places"
             );
         }
 
@@ -224,13 +365,15 @@ public class CustomerRefundService {
         }
     }
 
+    // ========================================
+    // RESPONSE
+    // ========================================
+
     private CustomerRefundResponse convertToResponse(
             CustomerRefund refund,
             Long ledgerTransactionId
     ) {
-
-        CustomerRefundResponse response =
-                new CustomerRefundResponse();
+        CustomerRefundResponse response = new CustomerRefundResponse();
 
         response.setId(refund.getId());
         response.setCustomerId(refund.getCustomer().getId());

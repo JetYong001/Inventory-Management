@@ -1,4 +1,3 @@
-
 package com.inventory.management.dto.response;
 
 import com.inventory.management.enums.SalesInvoiceStatus;
@@ -24,6 +23,10 @@ public class SalesInvoiceResponse {
     private String customerAddress;
 
     private BigDecimal totalAmount;
+    private BigDecimal totalPaid;
+    private BigDecimal totalCreditApplied;
+    private BigDecimal outstandingAmount;
+
     private SalesInvoiceStatus status;
 
     private List<SalesInvoiceItemResponse> items;
@@ -117,6 +120,30 @@ public class SalesInvoiceResponse {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public BigDecimal getTotalPaid() {
+        return totalPaid;
+    }
+
+    public void setTotalPaid(BigDecimal totalPaid) {
+        this.totalPaid = totalPaid;
+    }
+
+    public BigDecimal getTotalCreditApplied() {
+        return totalCreditApplied;
+    }
+
+    public void setTotalCreditApplied(BigDecimal totalCreditApplied) {
+        this.totalCreditApplied = totalCreditApplied;
+    }
+
+    public BigDecimal getOutstandingAmount() {
+        return outstandingAmount;
+    }
+
+    public void setOutstandingAmount(BigDecimal outstandingAmount) {
+        this.outstandingAmount = outstandingAmount;
     }
 
     public SalesInvoiceStatus getStatus() {

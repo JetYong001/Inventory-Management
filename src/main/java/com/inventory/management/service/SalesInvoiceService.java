@@ -7,9 +7,12 @@ import com.inventory.management.entity.Sales;
 import com.inventory.management.entity.SalesItem;
 import com.inventory.management.entity.SalesInvoice;
 import com.inventory.management.entity.SalesInvoiceItem;
+import com.inventory.management.enums.CustomerCreditTransactionType;
 import com.inventory.management.enums.SalesInvoiceStatus;
 import com.inventory.management.exception.InvalidSalesOperationException;
 import com.inventory.management.exception.SalesInvoiceNotFoundException;
+import com.inventory.management.repository.CustomerCreditTransactionRepository;
+import com.inventory.management.repository.PaymentRepository;
 import com.inventory.management.repository.SalesInvoiceRepository;
 import com.inventory.management.repository.SalesRepository;
 import com.inventory.management.util.BusinessCodeGenerator;
@@ -17,21 +20,41 @@ import com.inventory.management.util.BusinessCodeGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class SalesInvoiceService {
 
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
+
+    private static final List<CustomerCreditTransactionType> SALES_CREDIT_TYPES =
+            List.of(
+                    CustomerCreditTransactionType.CREDIT_APPLIED,
+                    CustomerCreditTransactionType.CREDIT_APPLICATION_REVERSED
+            );
+
     private final SalesInvoiceRepository salesInvoiceRepository;
     private final SalesRepository salesRepository;
+    private final PaymentRepository paymentRepository;
+    private final CustomerCreditTransactionRepository customerCreditTransactionRepository;
 
     public SalesInvoiceService(
             SalesInvoiceRepository salesInvoiceRepository,
-            SalesRepository salesRepository) {
+            SalesRepository salesRepository,
+            PaymentRepository paymentRepository,
+            CustomerCreditTransactionRepository customerCreditTransactionRepository
+    ) {
         this.salesInvoiceRepository = salesInvoiceRepository;
         this.salesRepository = salesRepository;
+        this.paymentRepository = paymentRepository;
+        this.customerCreditTransactionRepository = customerCreditTransactionRepository;
     }
+
+    // ========================================
+    // CREATE INVOICE FROM SALES
+    // ========================================
 
     @Transactional
     public SalesInvoiceResponse createInvoiceFromSales(Long salesId) {
@@ -78,7 +101,8 @@ public class SalesInvoiceService {
             String productCode = salesItem.getProductCodeSnapshot();
             String productName = salesItem.getProductNameSnapshot();
 
-            if (productCode == null || productName == null) {
+            if (productCode == null || productCode.isBlank()
+                    || productName == null || productName.isBlank()) {
                 productCode = salesItem.getProduct().getProductCode();
                 productName = salesItem.getProduct().getProductName();
             }
@@ -107,6 +131,10 @@ public class SalesInvoiceService {
         return convertToResponse(savedInvoice);
     }
 
+    // ========================================
+    // GET ALL INVOICES
+    // ========================================
+
     @Transactional(readOnly = true)
     public List<SalesInvoiceResponse> getAllInvoices() {
 
@@ -115,6 +143,10 @@ public class SalesInvoiceService {
                 .map(this::convertToResponse)
                 .toList();
     }
+
+    // ========================================
+    // GET INVOICE BY ID
+    // ========================================
 
     @Transactional(readOnly = true)
     public SalesInvoiceResponse getInvoiceById(Long invoiceId) {
@@ -128,6 +160,10 @@ public class SalesInvoiceService {
         return convertToResponse(invoice);
     }
 
+    // ========================================
+    // GET INVOICE BY SALES ID
+    // ========================================
+
     @Transactional(readOnly = true)
     public SalesInvoiceResponse getInvoiceBySalesId(Long salesId) {
 
@@ -139,6 +175,98 @@ public class SalesInvoiceService {
 
         return convertToResponse(invoice);
     }
+
+    // ========================================
+    // PAYMENT CALCULATION
+    // ========================================
+
+    private BigDecimal getTotalPaid(Long invoiceId) {
+
+        BigDecimal totalPaid =
+                paymentRepository.getTotalSalesInvoicePayments(invoiceId);
+
+        return safeAmount(totalPaid);
+    }
+
+    // ========================================
+    // CREDIT CALCULATION
+    // ========================================
+
+    private BigDecimal getTotalCreditApplied(Long invoiceId) {
+
+        BigDecimal totalCredit =
+                customerCreditTransactionRepository
+                        .getNetAppliedCreditForSalesInvoice(
+                                invoiceId,
+                                SALES_CREDIT_TYPES
+                        );
+
+        return safeAmount(totalCredit).max(ZERO);
+    }
+
+    // ========================================
+    // OUTSTANDING CALCULATION
+    // ========================================
+
+    private BigDecimal calculateOutstanding(
+            BigDecimal totalAmount,
+            BigDecimal totalPaid,
+            BigDecimal totalCreditApplied
+    ) {
+        return safeAmount(totalAmount)
+                .subtract(safeAmount(totalPaid))
+                .subtract(safeAmount(totalCreditApplied))
+                .max(ZERO);
+    }
+
+    // ========================================
+    // STATUS CALCULATION
+    // ========================================
+
+    private SalesInvoiceStatus calculateStatus(
+            BigDecimal totalPaid,
+            BigDecimal totalCreditApplied,
+            BigDecimal outstanding
+    ) {
+        boolean hasPayment = totalPaid.compareTo(ZERO) > 0;
+        boolean hasCredit = totalCreditApplied.compareTo(ZERO) > 0;
+        boolean fullySettled = outstanding.compareTo(ZERO) <= 0;
+
+        if (fullySettled) {
+
+            if (hasPayment && hasCredit) {
+                return SalesInvoiceStatus.SETTLED;
+            }
+
+            if (hasCredit) {
+                return SalesInvoiceStatus.CREDITED;
+            }
+
+            return SalesInvoiceStatus.PAID;
+        }
+
+        if (hasPayment && hasCredit) {
+            return SalesInvoiceStatus.PARTIALLY_SETTLED;
+        }
+
+        if (hasCredit) {
+            return SalesInvoiceStatus.PARTIALLY_CREDITED;
+        }
+
+        if (hasPayment) {
+            return SalesInvoiceStatus.PARTIALLY_PAID;
+        }
+
+        return SalesInvoiceStatus.UNPAID;
+    }
+
+    private BigDecimal safeAmount(BigDecimal amount) {
+        return amount != null ? amount : ZERO;
+    }
+
+    // ========================================
+    // RESPONSE CONVERSION
+    // ========================================
 
     private SalesInvoiceResponse convertToResponse(SalesInvoice invoice) {
 
@@ -158,8 +286,27 @@ public class SalesInvoiceService {
         response.setCustomerEmail(invoice.getCustomerEmail());
         response.setCustomerAddress(invoice.getCustomerAddress());
 
-        response.setTotalAmount(invoice.getTotalAmount());
-        response.setStatus(invoice.getStatus());
+        BigDecimal totalAmount = safeAmount(invoice.getTotalAmount());
+        BigDecimal totalPaid = getTotalPaid(invoice.getId());
+        BigDecimal totalCreditApplied = getTotalCreditApplied(invoice.getId());
+
+        BigDecimal outstandingAmount = calculateOutstanding(
+                totalAmount,
+                totalPaid,
+                totalCreditApplied
+        );
+
+        SalesInvoiceStatus calculatedStatus = calculateStatus(
+                totalPaid,
+                totalCreditApplied,
+                outstandingAmount
+        );
+
+        response.setTotalAmount(totalAmount);
+        response.setTotalPaid(totalPaid);
+        response.setTotalCreditApplied(totalCreditApplied);
+        response.setOutstandingAmount(outstandingAmount);
+        response.setStatus(calculatedStatus);
 
         List<SalesInvoiceItemResponse> itemResponses = new ArrayList<>();
 

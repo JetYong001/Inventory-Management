@@ -1,9 +1,11 @@
-
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.CustomerCreditApplicationRequest;
+import com.inventory.management.dto.request.CustomerCreditReversalRequest;
+
 import com.inventory.management.dto.response.CustomerCreditApplicationResponse;
 import com.inventory.management.dto.response.CustomerCreditBalanceResponse;
+import com.inventory.management.dto.response.CustomerCreditReversalResponse;
 import com.inventory.management.dto.response.CustomerCreditTransactionResponse;
 
 import com.inventory.management.entity.Customer;
@@ -25,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -62,6 +65,7 @@ public class CustomerCreditService {
     public CustomerCreditBalanceResponse getCustomerCreditBalance(
             Long customerId
     ) {
+
         validateCustomerId(customerId);
 
         Customer customer = customerRepository.findById(customerId)
@@ -80,14 +84,16 @@ public class CustomerCreditService {
                 CustomerCreditTransactionType.CREDIT_NOTE_ISSUED
         );
 
-        BigDecimal totalCreditApplied = calculateNetAppliedCredit(transactions);
+        BigDecimal totalCreditApplied =
+                calculateNetAppliedCredit(transactions);
 
         BigDecimal totalRefunded = sumByType(
                 transactions,
                 CustomerCreditTransactionType.REFUND
         );
 
-        BigDecimal availableBalance = calculateAvailableBalance(transactions);
+        BigDecimal availableBalance =
+                calculateAvailableBalance(transactions);
 
         List<CustomerCreditTransactionResponse> transactionResponses =
                 transactions.stream()
@@ -119,19 +125,23 @@ public class CustomerCreditService {
     public CustomerCreditApplicationResponse applyCustomerCredit(
             CustomerCreditApplicationRequest request
     ) {
+
         validateApplicationRequest(request);
 
         Long customerId = request.getCustomerId();
         Long invoiceId = request.getSalesInvoiceId();
+
         BigDecimal amount = request.getAmount();
 
-        Customer customer = customerRepository.findByIdForUpdate(customerId)
+        Customer customer = customerRepository
+                .findByIdForUpdate(customerId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Customer not found with ID: " + customerId
                 ));
 
-        SalesInvoice invoice = salesInvoiceRepository.findByIdForUpdate(invoiceId)
+        SalesInvoice invoice = salesInvoiceRepository
+                .findByIdForUpdate(invoiceId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Sales invoice not found with ID: " + invoiceId
@@ -159,7 +169,8 @@ public class CustomerCreditService {
                 paymentRepository.getTotalSalesInvoicePayments(invoiceId)
         );
 
-        BigDecimal appliedCredit = getNetAppliedCredit(invoiceId);
+        BigDecimal appliedCredit =
+                getNetAppliedCredit(invoiceId);
 
         BigDecimal outstanding = calculateOutstanding(
                 invoice.getTotalAmount(),
@@ -193,7 +204,10 @@ public class CustomerCreditService {
         );
 
         transaction.setAmount(amount.negate());
-        transaction.setReferenceNumber(invoice.getInvoiceNumber());
+
+        transaction.setReferenceNumber(
+                invoice.getInvoiceNumber()
+        );
 
         transaction.setRemarks(
                 request.getRemarks() != null
@@ -203,9 +217,10 @@ public class CustomerCreditService {
         );
 
         CustomerCreditTransaction savedTransaction =
-                transactionRepository.save(transaction);
+                transactionRepository.saveAndFlush(transaction);
 
-        BigDecimal updatedAppliedCredit = appliedCredit.add(amount);
+        BigDecimal updatedAppliedCredit =
+                appliedCredit.add(amount);
 
         updateInvoiceStatus(
                 invoice,
@@ -228,6 +243,7 @@ public class CustomerCreditService {
         response.setCustomerId(customer.getId());
         response.setSalesInvoiceId(invoice.getId());
         response.setInvoiceNumber(invoice.getInvoiceNumber());
+
         response.setAppliedAmount(amount);
 
         response.setAvailableCreditBalance(
@@ -242,7 +258,228 @@ public class CustomerCreditService {
     }
 
     // =========================
-    // VALIDATION
+    // REVERSE CUSTOMER CREDIT
+    // =========================
+
+    @Transactional
+    public CustomerCreditReversalResponse reverseCustomerCreditApplication(
+            Long transactionId,
+            CustomerCreditReversalRequest request
+    ) {
+
+        if (transactionId == null || transactionId <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Valid customer credit transaction ID is required"
+            );
+        }
+
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Credit reversal request is required"
+            );
+        }
+
+        if (request.getRemarks() != null
+                && request.getRemarks().length() > 500) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Remarks cannot exceed 500 characters"
+            );
+        }
+
+        CustomerCreditTransaction original =
+                transactionRepository.findById(transactionId)
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Customer credit transaction not found"
+                        ));
+
+        // Only a negative CREDIT_APPLIED transaction can be reversed.
+
+        if (original.getTransactionType()
+                != CustomerCreditTransactionType.CREDIT_APPLIED
+                || original.getAmount() == null
+                || original.getAmount().compareTo(ZERO) >= 0) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Only a negative CREDIT_APPLIED transaction can be reversed"
+            );
+        }
+
+        if (original.getCustomer() == null
+                || original.getSalesInvoice() == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Original credit application is missing its customer or invoice"
+            );
+        }
+
+        Long customerId = original.getCustomer().getId();
+        Long invoiceId = original.getSalesInvoice().getId();
+
+        // Lock customer first to prevent concurrent credit balance changes.
+
+        Customer customer = customerRepository
+                .findByIdForUpdate(customerId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Customer not found"
+                ));
+
+        SalesInvoice invoice = salesInvoiceRepository
+                .findByIdForUpdate(invoiceId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Sales invoice not found"
+                ));
+
+        validateInvoiceOwnership(invoice, customerId);
+
+        // The unique relationship and this check prevent reversing
+        // the same original transaction more than once.
+
+        if (transactionRepository.existsByReversedTransaction_Id(
+                transactionId
+        )) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "This customer credit application has already been reversed"
+            );
+        }
+
+        BigDecimal reversedAmount =
+                original.getAmount().abs();
+
+        BigDecimal paidAmount = safeAmount(
+                paymentRepository.getTotalSalesInvoicePayments(invoiceId)
+        );
+
+        BigDecimal appliedCredit =
+                getNetAppliedCredit(invoiceId);
+
+        if (appliedCredit.compareTo(reversedAmount) < 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Net applied customer credit is insufficient for this reversal"
+            );
+        }
+
+        List<CustomerCreditTransaction> customerTransactions =
+                transactionRepository.findByCustomerIdOrderByCreatedAtDesc(
+                        customerId
+                );
+
+        BigDecimal availableBefore =
+                calculateAvailableBalance(customerTransactions);
+
+        BigDecimal updatedAppliedCredit =
+                appliedCredit.subtract(reversedAmount);
+
+        BigDecimal updatedOutstanding = calculateOutstanding(
+                invoice.getTotalAmount(),
+                paidAmount,
+                updatedAppliedCredit
+        );
+
+        CustomerCreditTransaction reversal =
+                new CustomerCreditTransaction();
+
+        reversal.setCustomer(customer);
+        reversal.setSalesInvoice(invoice);
+
+        // Preserve the source credit note relationship when the
+        // original application came from a Sales Credit Note.
+
+        reversal.setSalesCreditNote(
+                original.getSalesCreditNote()
+        );
+
+        reversal.setTransactionType(
+                CustomerCreditTransactionType.CREDIT_APPLICATION_REVERSED
+        );
+
+        // Original application is negative.
+        // Reversal is positive, restoring the available credit.
+
+        reversal.setAmount(reversedAmount);
+
+        reversal.setReferenceNumber(
+                "CCR-" + UUID.randomUUID()
+                        .toString()
+                        .substring(0, 12)
+                        .toUpperCase()
+        );
+
+        reversal.setRemarks(
+                request.getRemarks() == null
+                        || request.getRemarks().isBlank()
+                        ? "Customer credit application reversed"
+                        : request.getRemarks().trim()
+        );
+
+        reversal.setReversedTransaction(original);
+
+        reversal = transactionRepository.saveAndFlush(reversal);
+
+        updateInvoiceStatus(
+                invoice,
+                paidAmount,
+                updatedAppliedCredit
+        );
+
+        salesInvoiceRepository.save(invoice);
+
+        CustomerCreditReversalResponse response =
+                new CustomerCreditReversalResponse();
+
+        response.setReversalTransactionId(reversal.getId());
+
+        response.setReversalReferenceNumber(
+                reversal.getReferenceNumber()
+        );
+
+        response.setOriginalTransactionId(
+                original.getId()
+        );
+
+        response.setOriginalReferenceNumber(
+                original.getReferenceNumber()
+        );
+
+        response.setCustomerId(customer.getId());
+        response.setSalesInvoiceId(invoice.getId());
+
+        response.setInvoiceNumber(
+                invoice.getInvoiceNumber()
+        );
+
+        response.setReversedAmount(reversedAmount);
+
+        response.setAvailableCreditBalance(
+                availableBefore.add(reversedAmount)
+        );
+
+        response.setOutstandingBalance(
+                updatedOutstanding
+        );
+
+        response.setInvoiceStatus(
+                invoice.getStatus()
+        );
+
+        response.setCreatedAt(
+                reversal.getCreatedAt()
+        );
+
+        return response;
+    }
+
+    // =========================
+    // VALIDATE CUSTOMER ID
     // =========================
 
     private void validateCustomerId(Long customerId) {
@@ -255,10 +492,15 @@ public class CustomerCreditService {
         }
     }
 
+    // =========================
+    // VALIDATE INVOICE OWNERSHIP
+    // =========================
+
     private void validateInvoiceOwnership(
             SalesInvoice invoice,
             Long customerId
     ) {
+
         if (invoice.getSales() == null
                 || invoice.getSales().getCustomer() == null
                 || invoice.getSales().getCustomer().getId() == null
@@ -273,9 +515,14 @@ public class CustomerCreditService {
         }
     }
 
+    // =========================
+    // VALIDATE APPLICATION REQUEST
+    // =========================
+
     private void validateApplicationRequest(
             CustomerCreditApplicationRequest request
     ) {
+
         if (request == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -321,21 +568,27 @@ public class CustomerCreditService {
     }
 
     // =========================
-    // CREDIT CALCULATION
+    // AVAILABLE CREDIT BALANCE
     // =========================
 
     private BigDecimal calculateAvailableBalance(
             List<CustomerCreditTransaction> transactions
     ) {
+
         return transactions.stream()
                 .map(CustomerCreditTransaction::getAmount)
                 .map(this::safeAmount)
                 .reduce(ZERO, BigDecimal::add);
     }
 
+    // =========================
+    // NET APPLIED CREDIT
+    // =========================
+
     private BigDecimal calculateNetAppliedCredit(
             List<CustomerCreditTransaction> transactions
     ) {
+
         BigDecimal applied = sumByType(
                 transactions,
                 CustomerCreditTransactionType.CREDIT_APPLIED
@@ -356,13 +609,18 @@ public class CustomerCreditService {
                         invoiceId,
                         APPLIED_TYPES
                 )
-        );
+        ).max(ZERO);
     }
+
+    // =========================
+    // SUM BY TRANSACTION TYPE
+    // =========================
 
     private BigDecimal sumByType(
             List<CustomerCreditTransaction> transactions,
             CustomerCreditTransactionType type
     ) {
+
         return transactions.stream()
                 .filter(transaction ->
                         transaction.getTransactionType() == type
@@ -382,6 +640,7 @@ public class CustomerCreditService {
             BigDecimal paidAmount,
             BigDecimal appliedCredit
     ) {
+
         return safeAmount(totalAmount)
                 .subtract(safeAmount(paidAmount))
                 .subtract(safeAmount(appliedCredit))
@@ -397,6 +656,7 @@ public class CustomerCreditService {
             BigDecimal paidAmount,
             BigDecimal appliedCredit
     ) {
+
         BigDecimal total = safeAmount(invoice.getTotalAmount());
         BigDecimal paid = safeAmount(paidAmount);
         BigDecimal credit = safeAmount(appliedCredit);
@@ -446,17 +706,34 @@ public class CustomerCreditService {
     private CustomerCreditTransactionResponse convertToResponse(
             CustomerCreditTransaction transaction
     ) {
+
         CustomerCreditTransactionResponse response =
                 new CustomerCreditTransactionResponse();
 
         response.setId(transaction.getId());
-        response.setTransactionType(transaction.getTransactionType());
-        response.setAmount(transaction.getAmount());
-        response.setReferenceNumber(transaction.getReferenceNumber());
-        response.setRemarks(transaction.getRemarks());
-        response.setCreatedAt(transaction.getCreatedAt());
+
+        response.setTransactionType(
+                transaction.getTransactionType()
+        );
+
+        response.setAmount(
+                transaction.getAmount()
+        );
+
+        response.setReferenceNumber(
+                transaction.getReferenceNumber()
+        );
+
+        response.setRemarks(
+                transaction.getRemarks()
+        );
+
+        response.setCreatedAt(
+                transaction.getCreatedAt()
+        );
 
         if (transaction.getSalesCreditNote() != null) {
+
             response.setSalesCreditNoteId(
                     transaction.getSalesCreditNote().getId()
             );
@@ -467,6 +744,7 @@ public class CustomerCreditService {
         }
 
         if (transaction.getSalesInvoice() != null) {
+
             response.setSalesInvoiceId(
                     transaction.getSalesInvoice().getId()
             );

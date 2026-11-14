@@ -1,4 +1,3 @@
-
 package com.inventory.management.controller;
 
 import com.inventory.management.dto.request.CustomerRefundRequest;
@@ -26,10 +25,14 @@ public class CustomerRefundController {
 
     @PostMapping
     public ResponseEntity<CustomerRefundResponse> createRefund(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @RequestBody CustomerRefundRequest request
     ) {
         CustomerRefundResponse response =
-                customerRefundService.createRefund(request);
+                customerRefundService.createRefund(
+                        request,
+                        idempotencyKey
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)

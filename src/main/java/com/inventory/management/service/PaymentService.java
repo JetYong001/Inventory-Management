@@ -18,14 +18,20 @@ import com.inventory.management.repository.CustomerCreditTransactionRepository;
 import com.inventory.management.repository.SupplierCreditTransactionRepository;
 import com.inventory.management.util.BusinessCodeGenerator;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -59,18 +65,45 @@ public class PaymentService {
         this.supplierCreditTransactionRepository = supplierCreditTransactionRepository;
     }
 
+    // ========================================
+    // CUSTOMER PAYMENT
+    // ========================================
+
     public PaymentResponse recordCustomerPayment(
             Long invoiceId,
-            PaymentRequest request
+            PaymentRequest request,
+            String rawIdempotencyKey
     ) {
         validateInvoiceId(invoiceId);
         validateRequest(request);
+
+        String idempotencyKey = normalizeIdempotencyKey(rawIdempotencyKey);
+
+        String requestHash = createRequestHash(
+                invoiceId,
+                request,
+                PaymentType.CUSTOMER_RECEIPT
+        );
+
+        Optional<PaymentResponse> existingPayment =
+                findExistingPayment(idempotencyKey, requestHash);
+
+        if (existingPayment.isPresent()) {
+            return existingPayment.get();
+        }
 
         SalesInvoice invoice = salesInvoiceRepository.findByIdForUpdate(invoiceId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Sales invoice not found with ID: " + invoiceId
                 ));
+
+        // Check again after obtaining the invoice lock.
+        existingPayment = findExistingPayment(idempotencyKey, requestHash);
+
+        if (existingPayment.isPresent()) {
+            return existingPayment.get();
+        }
 
         BigDecimal totalAmount = safeAmount(invoice.getTotalAmount());
 
@@ -90,18 +123,14 @@ public class PaymentService {
 
         Payment payment = createPayment(
                 request,
-                PaymentType.CUSTOMER_RECEIPT
+                PaymentType.CUSTOMER_RECEIPT,
+                idempotencyKey,
+                requestHash
         );
 
         payment.setSalesInvoice(invoice);
 
-        Payment savedPayment = paymentRepository.saveAndFlush(payment);
-
-        savedPayment.setPaymentNumber(
-                BusinessCodeGenerator.format("PAY", savedPayment.getId())
-        );
-
-        savedPayment = paymentRepository.save(savedPayment);
+        Payment savedPayment = savePayment(payment);
 
         updateSalesInvoiceStatus(
                 invoice,
@@ -112,18 +141,45 @@ public class PaymentService {
         return convertToResponse(savedPayment);
     }
 
+    // ========================================
+    // SUPPLIER PAYMENT
+    // ========================================
+
     public PaymentResponse recordSupplierPayment(
             Long invoiceId,
-            PaymentRequest request
+            PaymentRequest request,
+            String rawIdempotencyKey
     ) {
         validateInvoiceId(invoiceId);
         validateRequest(request);
+
+        String idempotencyKey = normalizeIdempotencyKey(rawIdempotencyKey);
+
+        String requestHash = createRequestHash(
+                invoiceId,
+                request,
+                PaymentType.SUPPLIER_PAYMENT
+        );
+
+        Optional<PaymentResponse> existingPayment =
+                findExistingPayment(idempotencyKey, requestHash);
+
+        if (existingPayment.isPresent()) {
+            return existingPayment.get();
+        }
 
         PurchaseInvoice invoice = purchaseInvoiceRepository.findByIdForUpdate(invoiceId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Purchase invoice not found with ID: " + invoiceId
                 ));
+
+        // Check again after obtaining the invoice lock.
+        existingPayment = findExistingPayment(idempotencyKey, requestHash);
+
+        if (existingPayment.isPresent()) {
+            return existingPayment.get();
+        }
 
         BigDecimal totalAmount = safeAmount(invoice.getTotalAmount());
 
@@ -143,18 +199,14 @@ public class PaymentService {
 
         Payment payment = createPayment(
                 request,
-                PaymentType.SUPPLIER_PAYMENT
+                PaymentType.SUPPLIER_PAYMENT,
+                idempotencyKey,
+                requestHash
         );
 
         payment.setPurchaseInvoice(invoice);
 
-        Payment savedPayment = paymentRepository.saveAndFlush(payment);
-
-        savedPayment.setPaymentNumber(
-                BusinessCodeGenerator.format("PAY", savedPayment.getId())
-        );
-
-        savedPayment = paymentRepository.save(savedPayment);
+        Payment savedPayment = savePayment(payment);
 
         updatePurchaseInvoiceStatus(
                 invoice,
@@ -164,6 +216,10 @@ public class PaymentService {
 
         return convertToResponse(savedPayment);
     }
+
+    // ========================================
+    // PAYMENT QUERIES
+    // ========================================
 
     @Transactional(readOnly = true)
     public List<PaymentResponse> getAllPayments() {
@@ -220,28 +276,130 @@ public class PaymentService {
                 .toList();
     }
 
-    private Payment createPayment(
+    // ========================================
+    // IDEMPOTENCY
+    // ========================================
+
+    private String normalizeIdempotencyKey(String key) {
+        if (key == null || key.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Idempotency-Key header is required"
+            );
+        }
+
+        String normalized = key.trim();
+
+        if (normalized.length() > 100) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Idempotency-Key cannot exceed 100 characters"
+            );
+        }
+
+        return normalized;
+    }
+
+    private String createRequestHash(
+            Long invoiceId,
             PaymentRequest request,
             PaymentType paymentType
+    ) {
+        String canonicalRequest = String.join("|",
+                paymentType.name(),
+                invoiceId.toString(),
+                request.getAmount().stripTrailingZeros().toPlainString(),
+                request.getPaymentMethod().name(),
+                request.getPaymentDate().toString(),
+                normalizeOptional(request.getReferenceNumber()),
+                normalizeOptional(request.getRemarks())
+        );
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+            byte[] hash = digest.digest(
+                    canonicalRequest.getBytes(StandardCharsets.UTF_8)
+            );
+
+            return HexFormat.of().formatHex(hash);
+
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(
+                    "SHA-256 algorithm is not available",
+                    exception
+            );
+        }
+    }
+
+    private String normalizeOptional(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private Optional<PaymentResponse> findExistingPayment(
+            String idempotencyKey,
+            String requestHash
+    ) {
+        return paymentRepository.findByIdempotencyKey(idempotencyKey)
+                .map(existingPayment -> {
+                    if (!requestHash.equals(existingPayment.getRequestHash())) {
+                        throw new ResponseStatusException(
+                                HttpStatus.CONFLICT,
+                                "This Idempotency-Key has already been used with a different payment request"
+                        );
+                    }
+
+                    return convertToResponse(existingPayment);
+                });
+    }
+
+    // ========================================
+    // CREATE PAYMENT
+    // ========================================
+
+    private Payment createPayment(
+            PaymentRequest request,
+            PaymentType paymentType,
+            String idempotencyKey,
+            String requestHash
     ) {
         Payment payment = new Payment();
 
         payment.setPaymentNumber(BusinessCodeGenerator.temporary());
         payment.setPaymentType(paymentType);
         payment.setPaymentMethod(request.getPaymentMethod());
-
-        payment.setPaymentDate(
-                request.getPaymentDate() != null
-                        ? request.getPaymentDate()
-                        : LocalDate.now()
-        );
-
+        payment.setPaymentDate(request.getPaymentDate());
         payment.setAmount(request.getAmount());
-        payment.setReferenceNumber(request.getReferenceNumber());
-        payment.setRemarks(request.getRemarks());
+        payment.setReferenceNumber(normalizeOptional(request.getReferenceNumber()));
+        payment.setRemarks(normalizeOptional(request.getRemarks()));
+        payment.setIdempotencyKey(idempotencyKey);
+        payment.setRequestHash(requestHash);
 
         return payment;
     }
+
+    private Payment savePayment(Payment payment) {
+        try {
+            Payment savedPayment = paymentRepository.saveAndFlush(payment);
+
+            savedPayment.setPaymentNumber(
+                    BusinessCodeGenerator.format("PAY", savedPayment.getId())
+            );
+
+            return paymentRepository.save(savedPayment);
+
+        } catch (DataIntegrityViolationException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Payment could not be saved because the request key or payment number conflicts with an existing record",
+                    exception
+            );
+        }
+    }
+
+    // ========================================
+    // VALIDATION
+    // ========================================
 
     private void validateInvoiceId(Long invoiceId) {
         if (invoiceId == null || invoiceId <= 0) {
@@ -284,8 +442,14 @@ public class PaymentService {
             );
         }
 
-        if (request.getPaymentDate() != null
-                && request.getPaymentDate().isAfter(LocalDate.now())) {
+        if (request.getPaymentDate() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payment date is required"
+            );
+        }
+
+        if (request.getPaymentDate().isAfter(LocalDate.now())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Payment date cannot be in the future"
@@ -312,6 +476,10 @@ public class PaymentService {
             );
         }
     }
+
+    // ========================================
+    // OUTSTANDING CALCULATION
+    // ========================================
 
     private BigDecimal calculateRemainingAmount(
             BigDecimal totalAmount,
@@ -358,6 +526,10 @@ public class PaymentService {
         return amount != null ? amount : ZERO;
     }
 
+    // ========================================
+    // SALES INVOICE STATUS
+    // ========================================
+
     private void updateSalesInvoiceStatus(
             SalesInvoice invoice,
             BigDecimal paidAmount,
@@ -379,17 +551,25 @@ public class PaymentService {
             } else {
                 invoice.setStatus(SalesInvoiceStatus.SETTLED);
             }
+
         } else if (paidAmount.compareTo(ZERO) > 0
                 && creditedAmount.compareTo(ZERO) > 0) {
             invoice.setStatus(SalesInvoiceStatus.PARTIALLY_SETTLED);
+
         } else if (paidAmount.compareTo(ZERO) > 0) {
             invoice.setStatus(SalesInvoiceStatus.PARTIALLY_PAID);
+
         } else if (creditedAmount.compareTo(ZERO) > 0) {
             invoice.setStatus(SalesInvoiceStatus.PARTIALLY_CREDITED);
+
         } else {
             invoice.setStatus(SalesInvoiceStatus.UNPAID);
         }
     }
+
+    // ========================================
+    // PURCHASE INVOICE STATUS
+    // ========================================
 
     private void updatePurchaseInvoiceStatus(
             PurchaseInvoice invoice,
@@ -412,17 +592,25 @@ public class PaymentService {
             } else {
                 invoice.setStatus(PurchaseInvoiceStatus.SETTLED);
             }
+
         } else if (paidAmount.compareTo(ZERO) > 0
                 && creditedAmount.compareTo(ZERO) > 0) {
             invoice.setStatus(PurchaseInvoiceStatus.PARTIALLY_SETTLED);
+
         } else if (paidAmount.compareTo(ZERO) > 0) {
             invoice.setStatus(PurchaseInvoiceStatus.PARTIALLY_PAID);
+
         } else if (creditedAmount.compareTo(ZERO) > 0) {
             invoice.setStatus(PurchaseInvoiceStatus.PARTIALLY_CREDITED);
+
         } else {
             invoice.setStatus(PurchaseInvoiceStatus.UNPAID);
         }
     }
+
+    // ========================================
+    // RESPONSE
+    // ========================================
 
     private PaymentResponse convertToResponse(Payment payment) {
         PaymentResponse response = new PaymentResponse();

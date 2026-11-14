@@ -1,0 +1,387 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmartStock inventory management">
+    <title>Stock | SmartStock</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
+    <link rel="stylesheet" href="/css/stock.css">
+</head>
+<body>
+
+<div class="app-shell">
+    <div id="sidebar-container"></div>
+
+    <main class="stock-main">
+
+        <header class="stock-header">
+            <div class="header-left">
+                <button class="menu-button"
+                        id="menu-button"
+                        type="button"
+                        aria-label="Open navigation"
+                        aria-controls="sidebar"
+                        aria-expanded="false">
+                    ☰
+                </button>
+
+                <div class="page-heading">
+                    <div class="breadcrumb">
+                        <span>Workspace</span>
+                        <span class="breadcrumb-divider">/</span>
+                        <strong>Stock</strong>
+                    </div>
+
+                    <h1>Stock Management</h1>
+                    <p>Monitor inventory levels, stock valuation and stock movements.</p>
+                </div>
+            </div>
+
+            <div class="company-profile">
+                <div class="company-info">
+                    <strong>Acme Stationery Sdn. Bhd.</strong>
+                    <span>Company Admin</span>
+                </div>
+                <span class="avatar">A</span>
+            </div>
+        </header>
+
+        <section class="stock-summary">
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span class="summary-label">Total Products</span>
+                    <span class="summary-icon summary-icon-blue">▦</span>
+                </div>
+                <strong id="total-products">—</strong>
+                <small>Products in inventory</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span class="summary-label">Total Stock Quantity</span>
+                    <span class="summary-icon summary-icon-purple">▤</span>
+                </div>
+                <strong id="total-stock-quantity">—</strong>
+                <small>Units currently available</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span class="summary-label">Inventory Value</span>
+                    <span class="summary-icon summary-icon-green">RM</span>
+                </div>
+                <strong id="total-inventory-value">RM —</strong>
+                <small>Based on product cost price</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span class="summary-label">Low Stock Items</span>
+                    <span class="summary-icon summary-icon-orange">!</span>
+                </div>
+                <strong id="low-stock-count">—</strong>
+                <small>Require stock attention</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span class="summary-label">Out of Stock</span>
+                    <span class="summary-icon summary-icon-red">×</span>
+                </div>
+                <strong id="out-of-stock-count">—</strong>
+                <small>Products with zero quantity</small>
+            </article>
+
+        </section>
+
+        <div id="page-message" class="page-message" role="alert"></div>
+
+        <section class="stock-panel">
+
+            <div class="panel-heading">
+                <div>
+                    <span class="section-eyebrow">INVENTORY MANAGEMENT</span>
+                    <h2>Stock Overview</h2>
+                    <p>View and manage the current stock balance of your products.</p>
+                </div>
+
+                <button class="primary-button"
+                        id="adjust-stock-button"
+                        type="button">
+                    <span>+</span>
+                    Adjust Stock
+                </button>
+            </div>
+
+            <div class="stock-toolbar">
+
+                <div class="stock-search">
+                    <label for="stock-search">Search</label>
+                    <div class="search-input-wrapper">
+                        <span class="search-icon">⌕</span>
+                        <input type="search"
+                               id="stock-search"
+                               placeholder="Search by product name or code...">
+                    </div>
+                </div>
+
+                <div class="stock-filter">
+                    <label for="stock-status-filter">Stock Status</label>
+                    <select id="stock-status-filter">
+                        <option value="all">All Stock</option>
+                        <option value="NORMAL">In Stock</option>
+                        <option value="LOW_STOCK">Low Stock</option>
+                        <option value="OUT_OF_STOCK">Out of Stock</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="table-container">
+                <table class="stock-table">
+                    <thead>
+                    <tr>
+                        <th>PRODUCT</th>
+                        <th>CURRENT STOCK</th>
+                        <th>MINIMUM STOCK</th>
+                        <th>COST PRICE</th>
+                        <th>STOCK VALUE</th>
+                        <th>STOCK STATUS</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="stock-table-body">
+                    <tr>
+                        <td colspan="7" class="table-loading">
+                            Loading stock...
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="pagination-footer">
+                <p id="pagination-info">Loading...</p>
+
+                <div class="pagination-buttons">
+                    <button type="button" id="previous-page" disabled>
+                        <span>←</span>
+                        Previous
+                    </button>
+
+                    <span id="current-page">1</span>
+
+                    <button type="button" id="next-page" disabled>
+                        Next
+                        <span>→</span>
+                    </button>
+                </div>
+            </footer>
+
+        </section>
+
+    </main>
+</div>
+
+
+<!-- STOCK ADJUSTMENT MODAL -->
+
+<div class="stock-modal" id="adjustment-modal" hidden>
+
+    <div class="modal-backdrop" data-close-adjustment></div>
+
+    <section class="modal-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="adjustment-title">
+
+        <header class="modal-header">
+            <div>
+                <span class="section-eyebrow">INVENTORY MANAGEMENT</span>
+                <h2 id="adjustment-title">Stock Adjustment</h2>
+                <p>Record a manual stock increase or decrease.</p>
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-adjustment"
+                    aria-label="Close modal">
+                ×
+            </button>
+        </header>
+
+        <form id="adjustment-form">
+
+            <div id="adjustment-message" class="form-message" role="alert"></div>
+
+            <div class="form-section">
+                <div class="form-section-heading">
+                    <span class="form-section-number">01</span>
+                    <div>
+                        <h3>Product Information</h3>
+                        <p>Select the product to adjust</p>
+                    </div>
+                </div>
+
+                <div class="stock-form-grid">
+
+                    <div class="field-group field-full">
+                        <label for="adjustment-product">Product *</label>
+                        <select id="adjustment-product" required>
+                            <option value="">Select product</option>
+                        </select>
+                    </div>
+
+                    <div class="field-group field-full">
+                        <label>Current Stock</label>
+                        <input type="text"
+                               id="adjustment-current-stock"
+                               value="—"
+                               readonly>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-heading">
+                    <span class="form-section-number">02</span>
+                    <div>
+                        <h3>Adjustment Details</h3>
+                        <p>Enter the stock adjustment information</p>
+                    </div>
+                </div>
+
+                <div class="stock-form-grid">
+
+                    <div class="field-group">
+                        <label for="adjustment-type">Adjustment Type *</label>
+                        <select id="adjustment-type" required>
+                            <option value="IN">Stock In</option>
+                            <option value="OUT">Stock Out</option>
+                        </select>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="adjustment-quantity">Quantity *</label>
+                        <input type="number"
+                               id="adjustment-quantity"
+                               min="1"
+                               step="1"
+                               placeholder="Enter quantity"
+                               required>
+                    </div>
+
+                    <div class="field-group field-full">
+                        <label for="adjustment-remarks">Remarks</label>
+                        <textarea id="adjustment-remarks"
+                                  maxlength="500"
+                                  placeholder="Enter adjustment reason..."></textarea>
+                    </div>
+
+                </div>
+            </div>
+
+            <footer class="modal-footer">
+                <button type="button"
+                        class="secondary-button"
+                        id="cancel-adjustment">
+                    Cancel
+                </button>
+
+                <button type="submit"
+                        class="primary-button"
+                        id="save-adjustment">
+                    Save Adjustment
+                </button>
+            </footer>
+
+        </form>
+    </section>
+</div>
+
+
+<!-- STOCK HISTORY MODAL -->
+
+<div class="stock-modal" id="history-modal" hidden>
+
+    <div class="modal-backdrop" data-close-history></div>
+
+    <section class="modal-dialog history-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="history-title">
+
+        <header class="modal-header">
+            <div>
+                <span class="section-eyebrow">INVENTORY RECORDS</span>
+                <h2 id="history-title">Stock History</h2>
+                <p id="history-description">View stock movement records.</p>
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-history"
+                    aria-label="Close modal">
+                ×
+            </button>
+        </header>
+
+        <div class="history-content">
+            <div class="history-product-summary">
+                <div>
+                    <span>Product</span>
+                    <strong id="history-product-name">—</strong>
+                </div>
+                <div>
+                    <span>Product Code</span>
+                    <strong id="history-product-code">—</strong>
+                </div>
+            </div>
+
+            <div class="history-table-container">
+                <table class="history-table">
+                    <thead>
+                    <tr>
+                        <th>DATE</th>
+                        <th>TYPE</th>
+                        <th>REFERENCE</th>
+                        <th>CHANGE</th>
+                        <th>BALANCE</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="history-table-body">
+                    <tr>
+                        <td colspan="5" class="table-loading">
+                            Loading history...
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <footer class="modal-footer">
+            <button type="button"
+                    class="secondary-button"
+                    id="close-history-button">
+                Close
+            </button>
+        </footer>
+
+    </section>
+</div>
+
+
+<script src="/js/api.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/stock.js"></script>
+
+</body>
+</html>

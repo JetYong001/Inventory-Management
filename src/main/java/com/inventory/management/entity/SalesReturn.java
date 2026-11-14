@@ -8,7 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "sales_returns")
+@Table(
+        name = "sales_returns",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_sales_return_idempotency_key",
+                        columnNames = "idempotency_key"
+                )
+        }
+)
 public class SalesReturn {
 
     @Id
@@ -35,6 +43,12 @@ public class SalesReturn {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;
 
+    @Column(name = "idempotency_key", length = 100)
+    private String idempotencyKey;
+
+    @Column(name = "request_hash", length = 64)
+    private String requestHash;
+
     @OneToMany(
             mappedBy = "salesReturn",
             cascade = CascadeType.ALL,
@@ -47,10 +61,14 @@ public class SalesReturn {
 
     @PrePersist
     protected void onCreate() {
+
         if (returnDate == null) {
             returnDate = LocalDateTime.now();
         }
-        createdAt = LocalDateTime.now();
+
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     public SalesReturn() {
@@ -106,6 +124,22 @@ public class SalesReturn {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
+
+    public String getRequestHash() {
+        return requestHash;
+    }
+
+    public void setRequestHash(String requestHash) {
+        this.requestHash = requestHash;
     }
 
     public List<SalesReturnItem> getItems() {

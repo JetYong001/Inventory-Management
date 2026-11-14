@@ -1,6 +1,7 @@
 package com.inventory.management.entity;
 
 import com.inventory.management.enums.CustomerCreditTransactionType;
+
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -38,6 +39,13 @@ public class CustomerCreditTransaction {
 
     @Column(length = 500)
     private String remarks;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "reversed_transaction_id",
+            unique = true
+    )
+    private CustomerCreditTransaction reversedTransaction;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -82,7 +90,9 @@ public class CustomerCreditTransaction {
         return transactionType;
     }
 
-    public void setTransactionType(CustomerCreditTransactionType transactionType) {
+    public void setTransactionType(
+            CustomerCreditTransactionType transactionType
+    ) {
         this.transactionType = transactionType;
     }
 
@@ -108,6 +118,16 @@ public class CustomerCreditTransaction {
 
     public void setRemarks(String remarks) {
         this.remarks = remarks;
+    }
+
+    public CustomerCreditTransaction getReversedTransaction() {
+        return reversedTransaction;
+    }
+
+    public void setReversedTransaction(
+            CustomerCreditTransaction reversedTransaction
+    ) {
+        this.reversedTransaction = reversedTransaction;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -17,6 +17,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     boolean existsByPurchaseInvoice_Id(Long purchaseInvoiceId);
 
+    Optional<Payment> findByIdempotencyKey(String idempotencyKey);
+
     List<Payment> findAllBySalesInvoice_IdOrderByPaymentDateDesc(Long salesInvoiceId);
 
     List<Payment> findAllByPurchaseInvoice_IdOrderByPaymentDateDesc(Long purchaseInvoiceId);
@@ -28,12 +30,16 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             FROM Payment p
             WHERE p.salesInvoice.id = :invoiceId
             """)
-    BigDecimal getTotalSalesInvoicePayments(@Param("invoiceId") Long invoiceId);
+    BigDecimal getTotalSalesInvoicePayments(
+            @Param("invoiceId") Long invoiceId
+    );
 
     @Query("""
             SELECT COALESCE(SUM(p.amount), 0)
             FROM Payment p
             WHERE p.purchaseInvoice.id = :invoiceId
             """)
-    BigDecimal getTotalPurchaseInvoicePayments(@Param("invoiceId") Long invoiceId);
+    BigDecimal getTotalPurchaseInvoicePayments(
+            @Param("invoiceId") Long invoiceId
+    );
 }

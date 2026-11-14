@@ -1,4 +1,3 @@
-
 package com.inventory.management.controller;
 
 import com.inventory.management.dto.request.SupplierCreditApplicationRequest;
@@ -29,35 +28,47 @@ public class SupplierCreditController {
 
     public SupplierCreditController(
             SupplierCreditService supplierCreditService,
-            SupplierRefundService supplierRefundService) {
-
+            SupplierRefundService supplierRefundService
+    ) {
         this.supplierCreditService = supplierCreditService;
         this.supplierRefundService = supplierRefundService;
     }
 
+    // ========================================
+    // SUPPLIER CREDIT BALANCE
+    // ========================================
+
     @GetMapping("/{supplierId}")
     public ResponseEntity<SupplierCreditBalanceResponse> getSupplierCreditBalance(
-            @PathVariable Long supplierId) {
-
+            @PathVariable Long supplierId
+    ) {
         return ResponseEntity.ok(
                 supplierCreditService.getSupplierCreditBalance(supplierId)
         );
     }
 
+    // ========================================
+    // APPLY SUPPLIER CREDIT
+    // ========================================
+
     @PostMapping("/apply")
     public ResponseEntity<SupplierCreditApplicationResponse> applySupplierCredit(
-            @Valid @RequestBody SupplierCreditApplicationRequest request) {
-
+            @Valid @RequestBody SupplierCreditApplicationRequest request
+    ) {
         return ResponseEntity.ok(
                 supplierCreditService.applySupplierCredit(request)
         );
     }
 
+    // ========================================
+    // REVERSE SUPPLIER CREDIT APPLICATION
+    // ========================================
+
     @PostMapping("/reverse/{transactionId}")
     public ResponseEntity<SupplierCreditReversalResponse> reverseSupplierCreditApplication(
             @PathVariable Long transactionId,
-            @Valid @RequestBody SupplierCreditReversalRequest request) {
-
+            @Valid @RequestBody SupplierCreditReversalRequest request
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(
                         supplierCreditService.reverseSupplierCreditApplication(
@@ -67,18 +78,32 @@ public class SupplierCreditController {
                 );
     }
 
+    // ========================================
+    // CREATE SUPPLIER REFUND
+    // ========================================
+
     @PostMapping("/refund")
     public ResponseEntity<SupplierRefundResponse> createRefund(
-            @Valid @RequestBody SupplierRefundRequest request) {
-
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody SupplierRefundRequest request
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(supplierRefundService.createRefund(request));
+                .body(
+                        supplierRefundService.createRefund(
+                                request,
+                                idempotencyKey
+                        )
+                );
     }
+
+    // ========================================
+    // GET SUPPLIER REFUNDS
+    // ========================================
 
     @GetMapping("/refunds/{supplierId}")
     public ResponseEntity<List<SupplierRefundResponse>> getRefunds(
-            @PathVariable Long supplierId) {
-
+            @PathVariable Long supplierId
+    ) {
         return ResponseEntity.ok(
                 supplierRefundService.getRefundsBySupplierId(supplierId)
         );

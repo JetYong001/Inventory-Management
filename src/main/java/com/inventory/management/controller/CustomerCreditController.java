@@ -1,12 +1,18 @@
 package com.inventory.management.controller;
 
 import com.inventory.management.dto.request.CustomerCreditApplicationRequest;
+import com.inventory.management.dto.request.CustomerCreditReversalRequest;
 import com.inventory.management.dto.request.CustomerRefundRequest;
+
 import com.inventory.management.dto.response.CustomerCreditApplicationResponse;
 import com.inventory.management.dto.response.CustomerCreditBalanceResponse;
+import com.inventory.management.dto.response.CustomerCreditReversalResponse;
 import com.inventory.management.dto.response.CustomerRefundResponse;
+
 import com.inventory.management.service.CustomerCreditService;
 import com.inventory.management.service.CustomerRefundService;
+
+import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,25 +36,61 @@ public class CustomerCreditController {
         this.customerRefundService = customerRefundService;
     }
 
+    // =========================
+    // GET CUSTOMER CREDIT BALANCE
+    // =========================
+
     @GetMapping("/{customerId}")
     public ResponseEntity<CustomerCreditBalanceResponse>
-    getCustomerCreditBalance(@PathVariable Long customerId) {
+    getCustomerCreditBalance(
+            @PathVariable Long customerId
+    ) {
 
         return ResponseEntity.ok(
                 customerCreditService.getCustomerCreditBalance(customerId)
         );
     }
 
+    // =========================
+    // APPLY CUSTOMER CREDIT
+    // =========================
+
     @PostMapping("/apply")
     public ResponseEntity<CustomerCreditApplicationResponse>
     applyCustomerCredit(
-            @RequestBody CustomerCreditApplicationRequest request
+            @Valid @RequestBody CustomerCreditApplicationRequest request
     ) {
 
         return ResponseEntity.ok(
                 customerCreditService.applyCustomerCredit(request)
         );
     }
+
+    // =========================
+    // REVERSE CUSTOMER CREDIT APPLICATION
+    // =========================
+
+    @PostMapping("/reverse/{transactionId}")
+    public ResponseEntity<CustomerCreditReversalResponse>
+    reverseCustomerCreditApplication(
+            @PathVariable Long transactionId,
+            @Valid @RequestBody CustomerCreditReversalRequest request
+    ) {
+
+        CustomerCreditReversalResponse response =
+                customerCreditService.reverseCustomerCreditApplication(
+                        transactionId,
+                        request
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
+    }
+
+    // =========================
+    // CREATE CUSTOMER REFUND
+    // =========================
 
     @PostMapping("/refund")
     public ResponseEntity<CustomerRefundResponse> createRefund(
@@ -60,9 +102,15 @@ public class CustomerCreditController {
                 .body(customerRefundService.createRefund(request));
     }
 
+    // =========================
+    // GET CUSTOMER REFUNDS
+    // =========================
+
     @GetMapping("/refunds/{customerId}")
     public ResponseEntity<List<CustomerRefundResponse>>
-    getCustomerRefunds(@PathVariable Long customerId) {
+    getCustomerRefunds(
+            @PathVariable Long customerId
+    ) {
 
         return ResponseEntity.ok(
                 customerRefundService.getCustomerRefunds(customerId)

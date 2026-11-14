@@ -41,10 +41,11 @@ public class GoodsReceivedNoteService {
     ) {
         validateRequest(request);
 
+        String requestKey = request.getRequestKey().trim();
         Map<Long, Integer> requestedItems = normalizeItems(request);
 
         Optional<GoodsReceivedNote> existing =
-                grnRepository.findByRequestKey(request.getRequestKey());
+                grnRepository.findByRequestKey(requestKey);
 
         if (existing.isPresent()) {
             return returnExistingOrReject(
@@ -61,7 +62,7 @@ public class GoodsReceivedNoteService {
                                 + request.getPurchaseId()
                 ));
 
-        existing = grnRepository.findByRequestKey(request.getRequestKey());
+        existing = grnRepository.findByRequestKey(requestKey);
 
         if (existing.isPresent()) {
             return returnExistingOrReject(
@@ -116,7 +117,7 @@ public class GoodsReceivedNoteService {
 
         GoodsReceivedNote grn = new GoodsReceivedNote();
         grn.setGrnNumber(BusinessCodeGenerator.temporary());
-        grn.setRequestKey(request.getRequestKey().trim());
+        grn.setRequestKey(requestKey);
         grn.setPurchase(purchase);
 
         GoodsReceivedNote savedGrn = grnRepository.saveAndFlush(grn);
@@ -133,14 +134,11 @@ public class GoodsReceivedNoteService {
             int receivedNow = entry.getValue();
 
             GoodsReceivedNoteItem grnItem = new GoodsReceivedNoteItem();
+
             grnItem.setGoodsReceivedNote(savedGrn);
             grnItem.setPurchaseItem(purchaseItem);
-            grnItem.setProductCode(
-                    purchaseItem.getProductCodeSnapshot()
-            );
-            grnItem.setProductName(
-                    purchaseItem.getProductNameSnapshot()
-            );
+            grnItem.setProductCode(purchaseItem.getProductCodeSnapshot());
+            grnItem.setProductName(purchaseItem.getProductNameSnapshot());
             grnItem.setQuantity(receivedNow);
 
             savedGrn.getItems().add(grnItem);
@@ -205,9 +203,11 @@ public class GoodsReceivedNoteService {
             );
         }
 
-        if (request.getRequestKey() == null
-                || request.getRequestKey().isBlank()
-                || request.getRequestKey().length() > 80) {
+        String requestKey = request.getRequestKey() == null
+                ? ""
+                : request.getRequestKey().trim();
+
+        if (requestKey.isBlank() || requestKey.length() > 80) {
             throw new InvalidPurchaseOperationException(
                     "A valid requestKey is required (maximum 80 characters)"
             );

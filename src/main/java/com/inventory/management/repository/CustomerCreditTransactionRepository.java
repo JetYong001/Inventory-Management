@@ -1,4 +1,3 @@
-
 package com.inventory.management.repository;
 
 import com.inventory.management.entity.CustomerCreditTransaction;
@@ -14,7 +13,8 @@ import java.util.List;
 public interface CustomerCreditTransactionRepository
         extends JpaRepository<CustomerCreditTransaction, Long> {
 
-    List<CustomerCreditTransaction> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
+    List<CustomerCreditTransaction>
+    findByCustomerIdOrderByCreatedAtDesc(Long customerId);
 
     CustomerCreditTransaction findByReferenceNumberAndTransactionType(
             String referenceNumber,
@@ -23,30 +23,33 @@ public interface CustomerCreditTransactionRepository
 
     boolean existsBySalesCreditNoteId(Long salesCreditNoteId);
 
+    boolean existsByReversedTransaction_Id(Long transactionId);
+
     @Query("""
-        SELECT COALESCE(SUM(ABS(t.amount)), 0)
-        FROM CustomerCreditTransaction t
-        WHERE t.salesInvoice.id = :invoiceId
-        AND t.transactionType = :transactionType
-        """)
+            SELECT COALESCE(SUM(ABS(t.amount)), 0)
+            FROM CustomerCreditTransaction t
+            WHERE t.salesInvoice.id = :invoiceId
+            AND t.transactionType = :transactionType
+            """)
     BigDecimal getTotalAppliedCreditForSalesInvoice(
             @Param("invoiceId") Long invoiceId,
-            @Param("transactionType") CustomerCreditTransactionType transactionType
+            @Param("transactionType")
+            CustomerCreditTransactionType transactionType
     );
 
     @Query("""
-        SELECT CASE
-            WHEN COALESCE(SUM(t.amount), 0) < 0
-            THEN -COALESCE(SUM(t.amount), 0)
-            ELSE 0
-        END
-        FROM CustomerCreditTransaction t
-        WHERE t.salesInvoice.id = :invoiceId
-        AND t.transactionType IN :transactionTypes
-        """)
+            SELECT CASE
+                WHEN COALESCE(SUM(t.amount), 0) < 0
+                THEN -COALESCE(SUM(t.amount), 0)
+                ELSE 0
+            END
+            FROM CustomerCreditTransaction t
+            WHERE t.salesInvoice.id = :invoiceId
+            AND t.transactionType IN :transactionTypes
+            """)
     BigDecimal getNetAppliedCreditForSalesInvoice(
             @Param("invoiceId") Long invoiceId,
-            @Param("transactionTypes") List<CustomerCreditTransactionType> transactionTypes
+            @Param("transactionTypes")
+            List<CustomerCreditTransactionType> transactionTypes
     );
-
 }

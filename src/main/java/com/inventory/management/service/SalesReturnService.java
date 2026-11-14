@@ -1,4 +1,3 @@
-
 package com.inventory.management.service;
 
 import com.inventory.management.dto.request.SalesReturnRequest;
@@ -32,12 +31,19 @@ import com.inventory.management.repository.CustomerCreditTransactionRepository;
 
 import com.inventory.management.util.BusinessCodeGenerator;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
 
@@ -81,58 +87,101 @@ public class SalesReturnService {
         this.salesReturnItemRepository = salesReturnItemRepository;
         this.salesCreditNoteRepository = salesCreditNoteRepository;
         this.paymentRepository = paymentRepository;
-        this.customerCreditTransactionRepository = customerCreditTransactionRepository;
+        this.customerCreditTransactionRepository =
+                customerCreditTransactionRepository;
         this.inventoryService = inventoryService;
     }
 
+    // =========================
+    // CREATE SALES RETURN
+    // =========================
+
     public SalesReturnResponse createSalesReturn(
-            SalesReturnRequest request
+            SalesReturnRequest request,
+            String idempotencyKey
     ) {
 
         validateRequest(request);
 
+        String normalizedKey =
+                normalizeIdempotencyKey(idempotencyKey);
+
+        String requestHash =
+                generateRequestHash(request);
+
         Sales sales = salesRepository.findByIdForUpdate(
                 request.getSalesId()
-        ).orElseThrow(() ->
-                new IllegalArgumentException("Sales not found")
-        );
+        ).orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Sales not found"
+        ));
+
+        // Check whether this request has already been processed.
+        // The sales row is locked first, so concurrent retries for
+        // the same sales order are serialized.
+
+        SalesReturn existingReturn =
+                salesReturnRepository
+                        .findByIdempotencyKey(normalizedKey)
+                        .orElse(null);
+
+        if (existingReturn != null) {
+
+            return returnExistingOrReject(
+                    existingReturn,
+                    requestHash
+            );
+        }
 
         if (sales.getStatus() != SalesStatus.COMPLETED) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Only completed sales can be returned"
             );
         }
 
         if (sales.getCustomer() == null) {
-            throw new IllegalStateException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Sales customer information is missing"
             );
         }
 
         Customer customer = customerRepository.findByIdForUpdate(
                 sales.getCustomer().getId()
-        ).orElseThrow(() ->
-                new IllegalArgumentException("Customer not found")
-        );
+        ).orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Customer not found"
+        ));
 
         SalesInvoice foundInvoice = salesInvoiceRepository
                 .findBySales_Id(sales.getId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException("Sales invoice not found")
-                );
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Sales invoice not found"
+                ));
 
         SalesInvoice salesInvoice = salesInvoiceRepository
                 .findByIdForUpdate(foundInvoice.getId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException("Sales invoice not found")
-                );
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Sales invoice not found"
+                ));
 
         Set<Long> processedSalesItemIds = new HashSet<>();
 
         SalesReturn salesReturn = new SalesReturn();
-        salesReturn.setReturnNumber(BusinessCodeGenerator.temporary());
+
+        salesReturn.setReturnNumber(
+                BusinessCodeGenerator.temporary()
+        );
+
         salesReturn.setSales(sales);
         salesReturn.setSalesInvoice(salesInvoice);
+
+        salesReturn.setIdempotencyKey(normalizedKey);
+        salesReturn.setRequestHash(requestHash);
+
         salesReturn.setReturnDate(LocalDateTime.now());
         salesReturn.setReason(request.getReason().trim());
 
@@ -140,38 +189,29 @@ public class SalesReturnService {
                 salesReturnRepository.saveAndFlush(salesReturn);
 
         savedReturn.setReturnNumber(
-                BusinessCodeGenerator.format("SR", savedReturn.getId())
+                BusinessCodeGenerator.format(
+                        "SR",
+                        savedReturn.getId()
+                )
         );
 
-        salesReturnRepository.saveAndFlush(savedReturn);
+        savedReturn =
+                salesReturnRepository.saveAndFlush(savedReturn);
 
         BigDecimal totalAmount = ZERO;
 
-        for (SalesReturnItemRequest itemRequest : request.getItems()) {
+        // =========================
+        // PROCESS RETURN ITEMS
+        // =========================
 
-            if (itemRequest == null) {
-                throw new IllegalArgumentException(
-                        "Sales return item cannot be null"
-                );
-            }
+        for (SalesReturnItemRequest itemRequest : request.getItems()) {
 
             Long salesItemId = itemRequest.getSalesItemId();
             Integer returnQuantity = itemRequest.getQuantity();
 
-            if (salesItemId == null || salesItemId <= 0) {
-                throw new IllegalArgumentException(
-                        "Valid sales item ID is required"
-                );
-            }
-
-            if (returnQuantity == null || returnQuantity <= 0) {
-                throw new IllegalArgumentException(
-                        "Return quantity must be greater than zero"
-                );
-            }
-
             if (!processedSalesItemIds.add(salesItemId)) {
-                throw new IllegalArgumentException(
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
                         "Duplicate sales item ID in return request"
                 );
             }
@@ -183,34 +223,41 @@ public class SalesReturnService {
                                     && item.getId().equals(salesItemId)
                     )
                     .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException(
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
                             "Sales item does not belong to this sales order"
                     ));
 
             if (salesItem.getProduct() == null) {
-                throw new IllegalStateException(
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
                         "Product is missing from sales item: " + salesItemId
                 );
             }
 
             if (salesItem.getQuantity() == null
                     || salesItem.getQuantity() <= 0) {
-                throw new IllegalStateException(
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
                         "Original sales item quantity is invalid"
                 );
             }
 
             Long previouslyReturned =
-                    salesReturnItemRepository.getReturnedQuantity(salesItemId);
+                    salesReturnItemRepository.getReturnedQuantity(
+                            salesItemId
+                    );
 
-            long returnedQuantity =
-                    previouslyReturned == null ? 0 : previouslyReturned;
+            long returnedQuantity = previouslyReturned == null
+                    ? 0
+                    : previouslyReturned;
 
             long requestedTotal =
                     returnedQuantity + returnQuantity;
 
             if (requestedTotal > salesItem.getQuantity()) {
-                throw new IllegalArgumentException(
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
                         "Return quantity exceeds original sales quantity for "
                                 + salesItem.getProductNameSnapshot()
                 );
@@ -218,7 +265,8 @@ public class SalesReturnService {
 
             if (salesItem.getUnitPrice() == null
                     || salesItem.getUnitPrice().compareTo(ZERO) < 0) {
-                throw new IllegalStateException(
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
                         "Original sales item unit price is invalid"
                 );
             }
@@ -233,14 +281,22 @@ public class SalesReturnService {
 
             returnItem.setSalesReturn(savedReturn);
             returnItem.setSalesItem(salesItem);
-            returnItem.setProductCode(salesItem.getProductCodeSnapshot());
-            returnItem.setProductName(salesItem.getProductNameSnapshot());
+
+            returnItem.setProductCode(
+                    salesItem.getProductCodeSnapshot()
+            );
+
+            returnItem.setProductName(
+                    salesItem.getProductNameSnapshot()
+            );
+
             returnItem.setQuantity(returnQuantity);
             returnItem.setUnitPrice(unitPrice);
             returnItem.setSubtotal(subtotal);
 
             savedReturn.getItems().add(returnItem);
 
+            // Returned goods are added back to inventory.
             inventoryService.increaseStock(
                     salesItem.getProduct(),
                     returnQuantity,
@@ -254,7 +310,12 @@ public class SalesReturnService {
 
         savedReturn.setTotalAmount(totalAmount);
 
-        savedReturn = salesReturnRepository.saveAndFlush(savedReturn);
+        savedReturn =
+                salesReturnRepository.saveAndFlush(savedReturn);
+
+        // =========================
+        // CALCULATE INVOICE BALANCE
+        // =========================
 
         BigDecimal paidAmount = safeAmount(
                 paymentRepository.getTotalSalesInvoicePayments(
@@ -274,11 +335,22 @@ public class SalesReturnService {
                 .subtract(previousApplied)
                 .max(ZERO);
 
-        BigDecimal currentApplied = totalAmount.min(remainingUnpaid);
+        // Apply the return credit to the original invoice
+        // only up to the remaining unpaid amount.
+
+        BigDecimal currentApplied =
+                totalAmount.min(remainingUnpaid);
+
+        // =========================
+        // CREATE SALES CREDIT NOTE
+        // =========================
 
         SalesCreditNote creditNote = new SalesCreditNote();
 
-        creditNote.setCreditNoteNumber(BusinessCodeGenerator.temporary());
+        creditNote.setCreditNoteNumber(
+                BusinessCodeGenerator.temporary()
+        );
+
         creditNote.setSalesReturn(savedReturn);
         creditNote.setSalesInvoice(salesInvoice);
         creditNote.setTotalAmount(totalAmount);
@@ -288,11 +360,18 @@ public class SalesReturnService {
                 salesCreditNoteRepository.saveAndFlush(creditNote);
 
         savedCreditNote.setCreditNoteNumber(
-                BusinessCodeGenerator.format("SCN", savedCreditNote.getId())
+                BusinessCodeGenerator.format(
+                        "SCN",
+                        savedCreditNote.getId()
+                )
         );
 
         savedCreditNote =
                 salesCreditNoteRepository.saveAndFlush(savedCreditNote);
+
+        // =========================
+        // ISSUE CUSTOMER CREDIT
+        // =========================
 
         createCreditTransaction(
                 customer,
@@ -303,6 +382,10 @@ public class SalesReturnService {
                 savedCreditNote.getCreditNoteNumber(),
                 "Sales credit note issued"
         );
+
+        // =========================
+        // APPLY CREDIT TO ORIGINAL INVOICE
+        // =========================
 
         if (currentApplied.compareTo(ZERO) > 0) {
 
@@ -317,44 +400,176 @@ public class SalesReturnService {
             );
         }
 
+        // =========================
+        // UPDATE INVOICE STATUS
+        // =========================
+
         updateSalesInvoiceStatus(salesInvoice);
 
         return convertToResponse(savedReturn);
     }
 
+    // =========================
+    // IDEMPOTENCY KEY
+    // =========================
+
+    private String normalizeIdempotencyKey(String key) {
+
+        if (key == null || key.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Idempotency-Key header is required"
+            );
+        }
+
+        String normalized = key.trim();
+
+        if (normalized.length() > 100) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Idempotency-Key cannot exceed 100 characters"
+            );
+        }
+
+        return normalized;
+    }
+
+    private SalesReturnResponse returnExistingOrReject(
+            SalesReturn existingReturn,
+            String requestHash
+    ) {
+
+        if (!requestHash.equals(existingReturn.getRequestHash())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Idempotency-Key has already been used with different request data"
+            );
+        }
+
+        return convertToResponse(existingReturn);
+    }
+
+    private String generateRequestHash(
+            SalesReturnRequest request
+    ) {
+
+        StringBuilder content = new StringBuilder();
+
+        content.append(request.getSalesId()).append('\n');
+
+        String reason = request.getReason().trim();
+
+        content.append(reason.length())
+                .append(':')
+                .append(reason)
+                .append('\n');
+
+        request.getItems()
+                .stream()
+                .sorted(Comparator.comparing(
+                        SalesReturnItemRequest::getSalesItemId
+                ))
+                .forEach(item -> content
+                        .append(item.getSalesItemId())
+                        .append(':')
+                        .append(item.getQuantity())
+                        .append('\n'));
+
+        try {
+            MessageDigest digest =
+                    MessageDigest.getInstance("SHA-256");
+
+            byte[] hash = digest.digest(
+                    content.toString().getBytes(StandardCharsets.UTF_8)
+            );
+
+            return HexFormat.of().formatHex(hash);
+
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(
+                    "Unable to generate sales return request hash",
+                    exception
+            );
+        }
+    }
+
+    // =========================
+    // VALIDATE REQUEST
+    // =========================
+
     private void validateRequest(SalesReturnRequest request) {
 
         if (request == null) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Sales return request is required"
             );
         }
 
-        if (request.getSalesId() == null || request.getSalesId() <= 0) {
-            throw new IllegalArgumentException(
+        if (request.getSalesId() == null
+                || request.getSalesId() <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Valid sales ID is required"
             );
         }
 
         if (request.getReason() == null
                 || request.getReason().isBlank()) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Return reason is required"
             );
         }
 
         if (request.getReason().length() > 500) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Return reason cannot exceed 500 characters"
             );
         }
 
-        if (request.getItems() == null || request.getItems().isEmpty()) {
-            throw new IllegalArgumentException(
+        if (request.getItems() == null
+                || request.getItems().isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "At least one return item is required"
             );
         }
+
+        Set<Long> itemIds = new HashSet<>();
+
+        for (SalesReturnItemRequest item : request.getItems()) {
+
+            if (item == null
+                    || item.getSalesItemId() == null
+                    || item.getSalesItemId() <= 0) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Valid sales item ID is required"
+                );
+            }
+
+            if (item.getQuantity() == null
+                    || item.getQuantity() <= 0) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Return quantity must be greater than zero"
+                );
+            }
+
+            if (!itemIds.add(item.getSalesItemId())) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Duplicate sales item ID in return request"
+                );
+            }
+        }
     }
+
+    // =========================
+    // GET NET APPLIED CREDIT
+    // =========================
 
     private BigDecimal getNetAppliedCredit(Long invoiceId) {
 
@@ -367,6 +582,10 @@ public class SalesReturnService {
 
         return safeAmount(amount).max(ZERO);
     }
+
+    // =========================
+    // CREATE CREDIT TRANSACTION
+    // =========================
 
     private void createCreditTransaction(
             Customer customer,
@@ -384,6 +603,7 @@ public class SalesReturnService {
         transaction.setCustomer(customer);
         transaction.setSalesCreditNote(creditNote);
         transaction.setSalesInvoice(invoice);
+
         transaction.setTransactionType(transactionType);
         transaction.setAmount(amount);
         transaction.setReferenceNumber(referenceNumber);
@@ -391,6 +611,10 @@ public class SalesReturnService {
 
         customerCreditTransactionRepository.save(transaction);
     }
+
+    // =========================
+    // UPDATE SALES INVOICE STATUS
+    // =========================
 
     private void updateSalesInvoiceStatus(SalesInvoice invoice) {
 
@@ -402,7 +626,8 @@ public class SalesReturnService {
                 )
         );
 
-        BigDecimal appliedCredit = getNetAppliedCredit(invoice.getId());
+        BigDecimal appliedCredit =
+                getNetAppliedCredit(invoice.getId());
 
         BigDecimal remaining = total
                 .subtract(paid)
@@ -410,7 +635,12 @@ public class SalesReturnService {
                 .max(ZERO);
 
         invoice.setStatus(
-                determineStatus(total, paid, appliedCredit, remaining)
+                determineStatus(
+                        total,
+                        paid,
+                        appliedCredit,
+                        remaining
+                )
         );
 
         salesInvoiceRepository.save(invoice);
@@ -452,32 +682,42 @@ public class SalesReturnService {
         return SalesInvoiceStatus.SETTLED;
     }
 
-    private BigDecimal safeAmount(BigDecimal amount) {
-        return amount == null ? ZERO : amount;
-    }
+    // =========================
+    // GET SALES RETURN BY ID
+    // =========================
 
     @Transactional(readOnly = true)
     public SalesReturnResponse getSalesReturnById(Long id) {
 
         if (id == null || id <= 0) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Valid sales return ID is required"
             );
         }
 
-        SalesReturn salesReturn = salesReturnRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("Sales return not found")
-                );
+        SalesReturn salesReturn =
+                salesReturnRepository.findById(id)
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Sales return not found"
+                        ));
 
         return convertToResponse(salesReturn);
     }
 
+    // =========================
+    // GET SALES RETURNS BY SALES ID
+    // =========================
+
     @Transactional(readOnly = true)
-    public List<SalesReturnResponse> getSalesReturnsBySalesId(Long salesId) {
+    public List<SalesReturnResponse> getSalesReturnsBySalesId(
+            Long salesId
+    ) {
 
         if (salesId == null || salesId <= 0) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "Valid sales ID is required"
             );
         }
@@ -489,45 +729,96 @@ public class SalesReturnService {
                 .toList();
     }
 
-    private SalesReturnResponse convertToResponse(SalesReturn salesReturn) {
+    // =========================
+    // RESPONSE MAPPING
+    // =========================
 
-        SalesReturnResponse response = new SalesReturnResponse();
+    private SalesReturnResponse convertToResponse(
+            SalesReturn salesReturn
+    ) {
+
+        SalesReturnResponse response =
+                new SalesReturnResponse();
 
         response.setId(salesReturn.getId());
         response.setReturnNumber(salesReturn.getReturnNumber());
-        response.setSalesId(salesReturn.getSales().getId());
-        response.setSalesNumber(salesReturn.getSales().getSalesNumber());
-        response.setSalesInvoiceId(salesReturn.getSalesInvoice().getId());
+
+        response.setSalesId(
+                salesReturn.getSales().getId()
+        );
+
+        response.setSalesNumber(
+                salesReturn.getSales().getSalesNumber()
+        );
+
+        response.setSalesInvoiceId(
+                salesReturn.getSalesInvoice().getId()
+        );
+
         response.setInvoiceNumber(
                 salesReturn.getSalesInvoice().getInvoiceNumber()
         );
-        response.setReturnDate(salesReturn.getReturnDate());
-        response.setReason(salesReturn.getReason());
-        response.setTotalAmount(salesReturn.getTotalAmount());
 
-        List<SalesReturnItemResponse> items = salesReturn.getItems()
-                .stream()
-                .map(item -> {
+        response.setReturnDate(
+                salesReturn.getReturnDate()
+        );
 
-                    SalesReturnItemResponse itemResponse =
-                            new SalesReturnItemResponse();
+        response.setReason(
+                salesReturn.getReason()
+        );
 
-                    itemResponse.setId(item.getId());
-                    itemResponse.setSalesItemId(
-                            item.getSalesItem().getId()
-                    );
-                    itemResponse.setProductCode(item.getProductCode());
-                    itemResponse.setProductName(item.getProductName());
-                    itemResponse.setQuantity(item.getQuantity());
-                    itemResponse.setUnitPrice(item.getUnitPrice());
-                    itemResponse.setSubtotal(item.getSubtotal());
+        response.setTotalAmount(
+                salesReturn.getTotalAmount()
+        );
 
-                    return itemResponse;
-                })
-                .toList();
+        List<SalesReturnItemResponse> items =
+                salesReturn.getItems()
+                        .stream()
+                        .map(item -> {
+
+                            SalesReturnItemResponse itemResponse =
+                                    new SalesReturnItemResponse();
+
+                            itemResponse.setId(item.getId());
+
+                            itemResponse.setSalesItemId(
+                                    item.getSalesItem().getId()
+                            );
+
+                            itemResponse.setProductCode(
+                                    item.getProductCode()
+                            );
+
+                            itemResponse.setProductName(
+                                    item.getProductName()
+                            );
+
+                            itemResponse.setQuantity(
+                                    item.getQuantity()
+                            );
+
+                            itemResponse.setUnitPrice(
+                                    item.getUnitPrice()
+                            );
+
+                            itemResponse.setSubtotal(
+                                    item.getSubtotal()
+                            );
+
+                            return itemResponse;
+                        })
+                        .toList();
 
         response.setItems(items);
 
         return response;
+    }
+
+    // =========================
+    // COMMON
+    // =========================
+
+    private BigDecimal safeAmount(BigDecimal amount) {
+        return amount == null ? ZERO : amount;
     }
 }

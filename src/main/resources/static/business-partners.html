@@ -1,0 +1,467 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmartStock business partner management">
+    <title>Business Partners | SmartStock</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
+    <link rel="stylesheet" href="/css/business-partners.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+    <div id="sidebar-container"></div>
+
+    <main class="partners-main">
+
+        <header class="partners-header">
+            <div class="header-left">
+                <button class="menu-button"
+                        id="menu-button"
+                        type="button"
+                        aria-label="Open navigation"
+                        aria-controls="sidebar"
+                        aria-expanded="false">
+                    ☰
+                </button>
+
+                <div class="page-heading">
+                    <div class="breadcrumb">
+                        <span>Workspace</span>
+                        <span class="breadcrumb-divider">/</span>
+                        <strong>Business Partners</strong>
+                    </div>
+
+                    <h1>Business Partners</h1>
+                    <p>Manage your suppliers and customers in one place.</p>
+                </div>
+            </div>
+
+            <div class="company-profile">
+                <div class="company-info">
+                    <strong>Acme Stationery Sdn. Bhd.</strong>
+                    <span>Company Admin</span>
+                </div>
+                <span class="avatar">A</span>
+            </div>
+        </header>
+
+        <section class="partner-summary">
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span class="summary-label">Total Partners</span>
+                    <span class="summary-icon summary-icon-blue">♙</span>
+                </div>
+                <strong id="total-partners">—</strong>
+                <small>All registered partners</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span class="summary-label">Suppliers</span>
+                    <span class="summary-icon summary-icon-purple">▤</span>
+                </div>
+                <strong id="total-suppliers">—</strong>
+                <small>Registered suppliers</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span class="summary-label">Customers</span>
+                    <span class="summary-icon summary-icon-green">♧</span>
+                </div>
+                <strong id="total-customers">—</strong>
+                <small>Registered customers</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span class="summary-label">Active Partners</span>
+                    <span class="summary-icon summary-icon-orange">✓</span>
+                </div>
+                <strong id="active-partners">—</strong>
+                <small>Currently active records</small>
+            </article>
+
+        </section>
+
+        <div id="page-message" class="page-message" role="alert"></div>
+
+        <section class="partners-panel">
+
+            <div class="panel-heading">
+                <div>
+                    <span class="section-eyebrow">CONTACT MANAGEMENT</span>
+                    <h2>Partner Directory</h2>
+                    <p>View and manage your supplier and customer information.</p>
+                </div>
+
+                <button class="primary-button"
+                        id="add-partner-button"
+                        type="button">
+                    <span>+</span>
+                    Add Partner
+                </button>
+            </div>
+
+            <div class="partner-tabs" role="tablist">
+                <button class="partner-tab is-active"
+                        type="button"
+                        data-tab="all">
+                    All Partners
+                    <span id="all-tab-count">0</span>
+                </button>
+
+                <button class="partner-tab"
+                        type="button"
+                        data-tab="supplier">
+                    Suppliers
+                    <span id="supplier-tab-count">0</span>
+                </button>
+
+                <button class="partner-tab"
+                        type="button"
+                        data-tab="customer">
+                    Customers
+                    <span id="customer-tab-count">0</span>
+                </button>
+            </div>
+
+            <div class="partner-toolbar">
+
+                <div class="partner-search">
+                    <label for="partner-search">Search Partners</label>
+                    <div class="search-input-wrapper">
+                        <span class="search-icon">⌕</span>
+                        <input type="search"
+                               id="partner-search"
+                               placeholder="Search by name, code, email or phone...">
+                    </div>
+                </div>
+
+                <div class="partner-filter">
+                    <label for="partner-status">Status</label>
+                    <select id="partner-status">
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="partner-table-container">
+                <table class="partners-table">
+                    <thead>
+                    <tr>
+                        <th>PARTNER</th>
+                        <th>TYPE</th>
+                        <th>CONTACT PERSON</th>
+                        <th>PHONE</th>
+                        <th>EMAIL</th>
+                        <th>STATUS</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="partners-table-body">
+                    <tr>
+                        <td colspan="7" class="table-loading">
+                            Loading business partners...
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="pagination-footer">
+                <p id="pagination-info">Loading...</p>
+
+                <div class="pagination-buttons">
+                    <button type="button" id="previous-page" disabled>
+                        ← Previous
+                    </button>
+
+                    <span id="current-page">1</span>
+
+                    <button type="button" id="next-page" disabled>
+                        Next →
+                    </button>
+                </div>
+            </footer>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- ADD / EDIT PARTNER MODAL -->
+
+<div class="partner-modal" id="partner-modal" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+
+    <section class="modal-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="partner-modal-title">
+
+        <header class="modal-header">
+            <div>
+                <span class="section-eyebrow">PARTNER MANAGEMENT</span>
+                <h2 id="partner-modal-title">Add Partner</h2>
+                <p id="partner-modal-description">
+                    Enter the business partner information.
+                </p>
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-partner-modal"
+                    aria-label="Close modal">
+                ×
+            </button>
+        </header>
+
+        <form id="partner-form">
+
+            <div id="form-message" class="form-message" role="alert"></div>
+
+            <div class="form-section">
+
+                <div class="form-section-heading">
+                    <span class="form-section-number">01</span>
+                    <div>
+                        <h3>Partner Information</h3>
+                        <p>Basic business partner details</p>
+                    </div>
+                </div>
+
+                <div class="partner-form-grid">
+
+                    <div class="field-group field-full">
+                        <label for="partner-type">Partner Type *</label>
+                        <select id="partner-type" required>
+                            <option value="supplier">Supplier</option>
+                            <option value="customer">Customer</option>
+                        </select>
+                    </div>
+
+                    <div class="field-group field-full">
+                        <label for="partner-name">Company / Partner Name *</label>
+                        <input type="text"
+                               id="partner-name"
+                               maxlength="150"
+                               placeholder="Enter partner name"
+                               required>
+                    </div>
+
+                    <div class="field-group field-full"
+                         id="contact-person-field">
+                        <label for="contact-person">Contact Person</label>
+                        <input type="text"
+                               id="contact-person"
+                               maxlength="100"
+                               placeholder="Enter contact person">
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="form-section">
+
+                <div class="form-section-heading">
+                    <span class="form-section-number">02</span>
+                    <div>
+                        <h3>Contact Information</h3>
+                        <p>Phone number, email and address</p>
+                    </div>
+                </div>
+
+                <div class="partner-form-grid">
+
+                    <div class="field-group">
+                        <label for="partner-phone">Phone Number</label>
+                        <input type="tel"
+                               id="partner-phone"
+                               maxlength="30"
+                               placeholder="Enter phone number">
+                    </div>
+
+                    <div class="field-group">
+                        <label for="partner-email">Email Address</label>
+                        <input type="email"
+                               id="partner-email"
+                               maxlength="150"
+                               placeholder="Enter email address">
+                    </div>
+
+                    <div class="field-group field-full">
+                        <label for="partner-address">Address</label>
+                        <textarea id="partner-address"
+                                  maxlength="500"
+                                  placeholder="Enter full address"></textarea>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <footer class="modal-footer">
+                <button type="button"
+                        class="secondary-button"
+                        id="cancel-partner-modal">
+                    Cancel
+                </button>
+
+                <button type="submit"
+                        class="primary-button"
+                        id="save-partner-button">
+                    Save Partner
+                </button>
+            </footer>
+
+        </form>
+
+    </section>
+</div>
+
+
+<!-- PARTNER DETAILS MODAL -->
+
+<div class="partner-modal" id="details-modal" hidden>
+    <div class="modal-backdrop" data-close-details></div>
+
+    <section class="modal-dialog details-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="details-name">
+
+        <header class="modal-header">
+            <div>
+                <span class="section-eyebrow">PARTNER PROFILE</span>
+                <h2 id="details-name">Partner Details</h2>
+                <p id="details-code">Partner information</p>
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-details-modal"
+                    aria-label="Close modal">
+                ×
+            </button>
+        </header>
+
+        <div class="details-content">
+
+            <div class="details-profile">
+                <div class="details-avatar" id="details-avatar">P</div>
+                <div>
+                    <h3 id="details-company-name">Partner Name</h3>
+                    <div class="details-profile-meta">
+                        <span id="details-type" class="type-badge">Supplier</span>
+                        <span id="details-status" class="status-badge">Active</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details-section">
+                <div class="details-section-heading">
+                    <h3>General Information</h3>
+                    <span>01</span>
+                </div>
+
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <span>Partner Code</span>
+                        <strong id="details-partner-code">—</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Partner Type</span>
+                        <strong id="details-partner-type">—</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Company / Partner Name</span>
+                        <strong id="details-partner-name">—</strong>
+                    </div>
+
+                    <div class="detail-item" id="details-contact-wrapper">
+                        <span>Contact Person</span>
+                        <strong id="details-contact-person">—</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details-section">
+                <div class="details-section-heading">
+                    <h3>Contact Information</h3>
+                    <span>02</span>
+                </div>
+
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <span>Phone Number</span>
+                        <strong id="details-phone">—</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Email Address</span>
+                        <strong id="details-email">—</strong>
+                    </div>
+
+                    <div class="detail-item detail-full">
+                        <span>Address</span>
+                        <strong id="details-address">—</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details-section">
+                <div class="details-section-heading">
+                    <h3>Record Information</h3>
+                    <span>03</span>
+                </div>
+
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <span>Created Date</span>
+                        <strong id="details-created-date">—</strong>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <footer class="modal-footer">
+            <button type="button"
+                    class="secondary-button"
+                    id="close-details-button">
+                Close
+            </button>
+
+            <button type="button"
+                    class="primary-button"
+                    id="edit-from-details">
+                Edit Partner
+            </button>
+        </footer>
+
+    </section>
+</div>
+
+
+<script src="/js/sidebar.js"></script>
+<script src="/js/business-partners.js"></script>
+
+</body>
+</html>

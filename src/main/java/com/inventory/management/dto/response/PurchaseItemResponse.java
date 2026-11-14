@@ -1,4 +1,3 @@
-
 package com.inventory.management.dto.response;
 
 import java.math.BigDecimal;
@@ -9,7 +8,11 @@ public class PurchaseItemResponse {
     private Long productId;
     private String productCode;
     private String productName;
+
     private Integer quantity;
+    private Integer receivedQuantity;
+    private Integer remainingQuantity;
+
     private BigDecimal unitCost;
     private BigDecimal subtotal;
 
@@ -51,6 +54,22 @@ public class PurchaseItemResponse {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public Integer getReceivedQuantity() {
+        return receivedQuantity;
+    }
+
+    public void setReceivedQuantity(Integer receivedQuantity) {
+        this.receivedQuantity = receivedQuantity;
+    }
+
+    public Integer getRemainingQuantity() {
+        return remainingQuantity;
+    }
+
+    public void setRemainingQuantity(Integer remainingQuantity) {
+        this.remainingQuantity = remainingQuantity;
     }
 
     public BigDecimal getUnitCost() {

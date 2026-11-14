@@ -1,4 +1,3 @@
-
 package com.inventory.management.controller;
 
 import com.inventory.management.dto.request.SalesReturnRequest;
@@ -21,37 +20,54 @@ public class SalesReturnController {
     private final SalesReturnService salesReturnService;
 
     public SalesReturnController(
-            SalesReturnService salesReturnService) {
+            SalesReturnService salesReturnService
+    ) {
         this.salesReturnService = salesReturnService;
     }
 
+    // =========================
     // CREATE SALES RETURN
+    // =========================
+
     @PostMapping
     public ResponseEntity<SalesReturnResponse> createSalesReturn(
-            @Valid @RequestBody SalesReturnRequest request) {
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody SalesReturnRequest request
+    ) {
 
         SalesReturnResponse response =
-                salesReturnService.createSalesReturn(request);
+                salesReturnService.createSalesReturn(
+                        request,
+                        idempotencyKey
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
 
+    // =========================
     // GET SALES RETURN BY ID
+    // =========================
+
     @GetMapping("/{returnId}")
     public ResponseEntity<SalesReturnResponse> getSalesReturnById(
-            @PathVariable Long returnId) {
+            @PathVariable Long returnId
+    ) {
 
         return ResponseEntity.ok(
                 salesReturnService.getSalesReturnById(returnId)
         );
     }
 
+    // =========================
     // GET SALES RETURNS BY SALES ID
+    // =========================
+
     @GetMapping("/sales/{salesId}")
     public ResponseEntity<List<SalesReturnResponse>> getSalesReturnsBySalesId(
-            @PathVariable Long salesId) {
+            @PathVariable Long salesId
+    ) {
 
         return ResponseEntity.ok(
                 salesReturnService.getSalesReturnsBySalesId(salesId)
