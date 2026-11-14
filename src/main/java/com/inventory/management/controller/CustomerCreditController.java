@@ -36,47 +36,41 @@ public class CustomerCreditController {
         this.customerRefundService = customerRefundService;
     }
 
-    // =========================
+    // ========================================
     // GET CUSTOMER CREDIT BALANCE
-    // =========================
+    // ========================================
 
     @GetMapping("/{customerId}")
-    public ResponseEntity<CustomerCreditBalanceResponse>
-    getCustomerCreditBalance(
+    public ResponseEntity<CustomerCreditBalanceResponse> getCustomerCreditBalance(
             @PathVariable Long customerId
     ) {
-
         return ResponseEntity.ok(
                 customerCreditService.getCustomerCreditBalance(customerId)
         );
     }
 
-    // =========================
+    // ========================================
     // APPLY CUSTOMER CREDIT
-    // =========================
+    // ========================================
 
     @PostMapping("/apply")
-    public ResponseEntity<CustomerCreditApplicationResponse>
-    applyCustomerCredit(
+    public ResponseEntity<CustomerCreditApplicationResponse> applyCustomerCredit(
             @Valid @RequestBody CustomerCreditApplicationRequest request
     ) {
-
         return ResponseEntity.ok(
                 customerCreditService.applyCustomerCredit(request)
         );
     }
 
-    // =========================
+    // ========================================
     // REVERSE CUSTOMER CREDIT APPLICATION
-    // =========================
+    // ========================================
 
     @PostMapping("/reverse/{transactionId}")
-    public ResponseEntity<CustomerCreditReversalResponse>
-    reverseCustomerCreditApplication(
+    public ResponseEntity<CustomerCreditReversalResponse> reverseCustomerCreditApplication(
             @PathVariable Long transactionId,
             @Valid @RequestBody CustomerCreditReversalRequest request
     ) {
-
         CustomerCreditReversalResponse response =
                 customerCreditService.reverseCustomerCreditApplication(
                         transactionId,
@@ -88,30 +82,34 @@ public class CustomerCreditController {
                 .body(response);
     }
 
-    // =========================
+    // ========================================
     // CREATE CUSTOMER REFUND
-    // =========================
+    // ========================================
 
     @PostMapping("/refund")
     public ResponseEntity<CustomerRefundResponse> createRefund(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @RequestBody CustomerRefundRequest request
     ) {
+        CustomerRefundResponse response =
+                customerRefundService.createRefund(
+                        request,
+                        idempotencyKey
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(customerRefundService.createRefund(request));
+                .body(response);
     }
 
-    // =========================
+    // ========================================
     // GET CUSTOMER REFUNDS
-    // =========================
+    // ========================================
 
     @GetMapping("/refunds/{customerId}")
-    public ResponseEntity<List<CustomerRefundResponse>>
-    getCustomerRefunds(
+    public ResponseEntity<List<CustomerRefundResponse>> getCustomerRefunds(
             @PathVariable Long customerId
     ) {
-
         return ResponseEntity.ok(
                 customerRefundService.getCustomerRefunds(customerId)
         );
