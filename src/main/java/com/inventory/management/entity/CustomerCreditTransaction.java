@@ -1,7 +1,6 @@
 package com.inventory.management.entity;
 
 import com.inventory.management.enums.CustomerCreditTransactionType;
-
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -40,11 +39,11 @@ public class CustomerCreditTransaction {
     @Column(length = 500)
     private String remarks;
 
+    @Column(name = "idempotency_key", unique = true, length = 100)
+    private String idempotencyKey;
+
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "reversed_transaction_id",
-            unique = true
-    )
+    @JoinColumn(name = "reversed_transaction_id", unique = true)
     private CustomerCreditTransaction reversedTransaction;
 
     @Column(nullable = false, updatable = false)
@@ -118,6 +117,14 @@ public class CustomerCreditTransaction {
 
     public void setRemarks(String remarks) {
         this.remarks = remarks;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 
     public CustomerCreditTransaction getReversedTransaction() {

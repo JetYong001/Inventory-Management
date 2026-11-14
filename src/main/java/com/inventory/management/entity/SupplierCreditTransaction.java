@@ -1,4 +1,3 @@
-
 package com.inventory.management.entity;
 
 import com.inventory.management.enums.SupplierCreditTransactionType;
@@ -40,6 +39,9 @@ public class SupplierCreditTransaction {
     @Column(length = 500)
     private String remarks;
 
+    @Column(name = "idempotency_key", unique = true, length = 100)
+    private String idempotencyKey;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reversed_transaction_id", unique = true)
     private SupplierCreditTransaction reversedTransaction;
@@ -71,7 +73,9 @@ public class SupplierCreditTransaction {
         return purchaseCreditNote;
     }
 
-    public void setPurchaseCreditNote(PurchaseCreditNote purchaseCreditNote) {
+    public void setPurchaseCreditNote(
+            PurchaseCreditNote purchaseCreditNote
+    ) {
         this.purchaseCreditNote = purchaseCreditNote;
     }
 
@@ -87,7 +91,9 @@ public class SupplierCreditTransaction {
         return transactionType;
     }
 
-    public void setTransactionType(SupplierCreditTransactionType transactionType) {
+    public void setTransactionType(
+            SupplierCreditTransactionType transactionType
+    ) {
         this.transactionType = transactionType;
     }
 
@@ -115,12 +121,21 @@ public class SupplierCreditTransaction {
         this.remarks = remarks;
     }
 
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
+
     public SupplierCreditTransaction getReversedTransaction() {
         return reversedTransaction;
     }
 
     public void setReversedTransaction(
-            SupplierCreditTransaction reversedTransaction) {
+            SupplierCreditTransaction reversedTransaction
+    ) {
         this.reversedTransaction = reversedTransaction;
     }
 

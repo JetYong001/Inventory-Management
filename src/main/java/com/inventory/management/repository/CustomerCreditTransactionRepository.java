@@ -25,6 +25,8 @@ public interface CustomerCreditTransactionRepository
 
     boolean existsByReversedTransaction_Id(Long transactionId);
 
+    boolean existsByIdempotencyKey(String idempotencyKey);
+
     @Query("""
             SELECT COALESCE(SUM(ABS(t.amount)), 0)
             FROM CustomerCreditTransaction t

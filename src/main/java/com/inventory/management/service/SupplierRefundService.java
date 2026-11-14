@@ -2,14 +2,19 @@ package com.inventory.management.service;
 
 import com.inventory.management.dto.request.SupplierRefundRequest;
 import com.inventory.management.dto.response.SupplierRefundResponse;
+
 import com.inventory.management.entity.Supplier;
 import com.inventory.management.entity.SupplierCreditTransaction;
 import com.inventory.management.entity.SupplierRefund;
+
 import com.inventory.management.enums.SupplierCreditTransactionType;
+
 import com.inventory.management.exception.InsufficientCreditException;
+
 import com.inventory.management.repository.SupplierCreditTransactionRepository;
 import com.inventory.management.repository.SupplierRefundRepository;
 import com.inventory.management.repository.SupplierRepository;
+
 import com.inventory.management.util.BusinessCodeGenerator;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -22,6 +27,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
@@ -57,7 +63,9 @@ public class SupplierRefundService {
     ) {
         validateRequest(request);
 
-        String idempotencyKey = normalizeIdempotencyKey(rawIdempotencyKey);
+        String idempotencyKey =
+                normalizeIdempotencyKey(rawIdempotencyKey);
+
         String requestHash = createRequestHash(request);
 
         Optional<SupplierRefundResponse> existingRefund =
@@ -74,8 +82,10 @@ public class SupplierRefundService {
                         "Supplier not found"
                 ));
 
-        // Check again after locking the supplier.
-        existingRefund = findExistingRefund(idempotencyKey, requestHash);
+        existingRefund = findExistingRefund(
+                idempotencyKey,
+                requestHash
+        );
 
         if (existingRefund.isPresent()) {
             return existingRefund.get();
@@ -106,8 +116,21 @@ public class SupplierRefundService {
         refund.setSupplier(supplier);
         refund.setAmount(refundAmount);
         refund.setPaymentMethod(request.getPaymentMethod());
-        refund.setReferenceNumber(normalizeOptional(request.getReferenceNumber()));
-        refund.setRemarks(normalizeOptional(request.getRemarks()));
+
+        refund.setRefundDate(
+                request.getRefundDate() == null
+                        ? LocalDate.now()
+                        : request.getRefundDate()
+        );
+
+        refund.setReferenceNumber(
+                normalizeOptional(request.getReferenceNumber())
+        );
+
+        refund.setRemarks(
+                normalizeOptional(request.getRemarks())
+        );
+
         refund.setIdempotencyKey(idempotencyKey);
         refund.setRequestHash(requestHash);
 
@@ -117,11 +140,14 @@ public class SupplierRefundService {
                 new SupplierCreditTransaction();
 
         transaction.setSupplier(supplier);
+
         transaction.setTransactionType(
                 SupplierCreditTransactionType.REFUND
         );
+
         transaction.setAmount(refundAmount.negate());
         transaction.setReferenceNumber(savedRefund.getRefundNumber());
+
         transaction.setRemarks(
                 "Supplier refund - " + savedRefund.getRefundNumber()
         );
@@ -164,6 +190,7 @@ public class SupplierRefundService {
     // ========================================
 
     private String normalizeIdempotencyKey(String key) {
+
         if (key == null || key.isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -184,6 +211,7 @@ public class SupplierRefundService {
     }
 
     private String createRequestHash(SupplierRefundRequest request) {
+
         String canonicalRequest = String.join("|",
                 request.getSupplierId().toString(),
                 request.getAmount().stripTrailingZeros().toPlainString(),
@@ -191,6 +219,11 @@ public class SupplierRefundService {
                 normalizeOptional(request.getReferenceNumber()),
                 normalizeOptional(request.getRemarks())
         );
+
+        // Keep the old hash format when no refund date is provided.
+        if (request.getRefundDate() != null) {
+            canonicalRequest += "|" + request.getRefundDate();
+        }
 
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -236,7 +269,10 @@ public class SupplierRefundService {
                     refundRepository.saveAndFlush(refund);
 
             savedRefund.setRefundNumber(
-                    BusinessCodeGenerator.format("SRF", savedRefund.getId())
+                    BusinessCodeGenerator.format(
+                            "SRF",
+                            savedRefund.getId()
+                    )
             );
 
             return refundRepository.saveAndFlush(savedRefund);
@@ -255,6 +291,7 @@ public class SupplierRefundService {
     // ========================================
 
     private void validateRequest(SupplierRefundRequest request) {
+
         if (request == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -312,18 +349,23 @@ public class SupplierRefundService {
     }
 
     // ========================================
-    // RESPONSE
+    // RESPONSE MAPPING
     // ========================================
 
-    private SupplierRefundResponse convertToResponse(SupplierRefund refund) {
-        SupplierRefundResponse response = new SupplierRefundResponse();
+    private SupplierRefundResponse convertToResponse(
+            SupplierRefund refund
+    ) {
+        SupplierRefundResponse response =
+                new SupplierRefundResponse();
 
         response.setId(refund.getId());
         response.setRefundNumber(refund.getRefundNumber());
+
         response.setSupplierId(refund.getSupplier().getId());
         response.setSupplierName(
                 refund.getSupplier().getSupplierName()
         );
+
         response.setAmount(refund.getAmount());
         response.setPaymentMethod(refund.getPaymentMethod());
         response.setRefundDate(refund.getRefundDate());

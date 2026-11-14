@@ -1,11 +1,14 @@
 package com.inventory.management.dto.request;
 
 import com.inventory.management.enums.PaymentMethod;
+
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public class SupplierRefundRequest {
 
@@ -14,10 +17,13 @@ public class SupplierRefundRequest {
 
     @NotNull
     @DecimalMin(value = "0.01")
+    @Digits(integer = 10, fraction = 2)
     private BigDecimal amount;
 
     @NotNull
     private PaymentMethod paymentMethod;
+
+    private LocalDate refundDate;
 
     @Size(max = 100)
     private String referenceNumber;
@@ -47,6 +53,14 @@ public class SupplierRefundRequest {
 
     public void setPaymentMethod(PaymentMethod paymentMethod) {
         this.paymentMethod = paymentMethod;
+    }
+
+    public LocalDate getRefundDate() {
+        return refundDate;
+    }
+
+    public void setRefundDate(LocalDate refundDate) {
+        this.refundDate = refundDate;
     }
 
     public String getReferenceNumber() {

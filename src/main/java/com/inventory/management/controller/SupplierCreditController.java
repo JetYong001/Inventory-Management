@@ -3,10 +3,12 @@ package com.inventory.management.controller;
 import com.inventory.management.dto.request.SupplierCreditApplicationRequest;
 import com.inventory.management.dto.request.SupplierCreditReversalRequest;
 import com.inventory.management.dto.request.SupplierRefundRequest;
+
 import com.inventory.management.dto.response.SupplierCreditApplicationResponse;
 import com.inventory.management.dto.response.SupplierCreditBalanceResponse;
 import com.inventory.management.dto.response.SupplierCreditReversalResponse;
 import com.inventory.management.dto.response.SupplierRefundResponse;
+
 import com.inventory.management.service.SupplierCreditService;
 import com.inventory.management.service.SupplierRefundService;
 
@@ -34,10 +36,6 @@ public class SupplierCreditController {
         this.supplierRefundService = supplierRefundService;
     }
 
-    // ========================================
-    // SUPPLIER CREDIT BALANCE
-    // ========================================
-
     @GetMapping("/{supplierId}")
     public ResponseEntity<SupplierCreditBalanceResponse> getSupplierCreditBalance(
             @PathVariable Long supplierId
@@ -47,22 +45,18 @@ public class SupplierCreditController {
         );
     }
 
-    // ========================================
-    // APPLY SUPPLIER CREDIT
-    // ========================================
-
     @PostMapping("/apply")
     public ResponseEntity<SupplierCreditApplicationResponse> applySupplierCredit(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody SupplierCreditApplicationRequest request
     ) {
         return ResponseEntity.ok(
-                supplierCreditService.applySupplierCredit(request)
+                supplierCreditService.applySupplierCredit(
+                        request,
+                        idempotencyKey
+                )
         );
     }
-
-    // ========================================
-    // REVERSE SUPPLIER CREDIT APPLICATION
-    // ========================================
 
     @PostMapping("/reverse/{transactionId}")
     public ResponseEntity<SupplierCreditReversalResponse> reverseSupplierCreditApplication(
@@ -78,10 +72,6 @@ public class SupplierCreditController {
                 );
     }
 
-    // ========================================
-    // CREATE SUPPLIER REFUND
-    // ========================================
-
     @PostMapping("/refund")
     public ResponseEntity<SupplierRefundResponse> createRefund(
             @RequestHeader("Idempotency-Key") String idempotencyKey,
@@ -95,10 +85,6 @@ public class SupplierCreditController {
                         )
                 );
     }
-
-    // ========================================
-    // GET SUPPLIER REFUNDS
-    // ========================================
 
     @GetMapping("/refunds/{supplierId}")
     public ResponseEntity<List<SupplierRefundResponse>> getRefunds(

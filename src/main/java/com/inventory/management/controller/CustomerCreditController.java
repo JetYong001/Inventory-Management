@@ -36,10 +36,6 @@ public class CustomerCreditController {
         this.customerRefundService = customerRefundService;
     }
 
-    // ========================================
-    // GET CUSTOMER CREDIT BALANCE
-    // ========================================
-
     @GetMapping("/{customerId}")
     public ResponseEntity<CustomerCreditBalanceResponse> getCustomerCreditBalance(
             @PathVariable Long customerId
@@ -49,22 +45,18 @@ public class CustomerCreditController {
         );
     }
 
-    // ========================================
-    // APPLY CUSTOMER CREDIT
-    // ========================================
-
     @PostMapping("/apply")
     public ResponseEntity<CustomerCreditApplicationResponse> applyCustomerCredit(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody CustomerCreditApplicationRequest request
     ) {
         return ResponseEntity.ok(
-                customerCreditService.applyCustomerCredit(request)
+                customerCreditService.applyCustomerCredit(
+                        request,
+                        idempotencyKey
+                )
         );
     }
-
-    // ========================================
-    // REVERSE CUSTOMER CREDIT APPLICATION
-    // ========================================
 
     @PostMapping("/reverse/{transactionId}")
     public ResponseEntity<CustomerCreditReversalResponse> reverseCustomerCreditApplication(
@@ -82,10 +74,6 @@ public class CustomerCreditController {
                 .body(response);
     }
 
-    // ========================================
-    // CREATE CUSTOMER REFUND
-    // ========================================
-
     @PostMapping("/refund")
     public ResponseEntity<CustomerRefundResponse> createRefund(
             @RequestHeader("Idempotency-Key") String idempotencyKey,
@@ -101,10 +89,6 @@ public class CustomerCreditController {
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
-
-    // ========================================
-    // GET CUSTOMER REFUNDS
-    // ========================================
 
     @GetMapping("/refunds/{customerId}")
     public ResponseEntity<List<CustomerRefundResponse>> getCustomerRefunds(
