@@ -1,59 +1,118 @@
 
 <aside class="sidebar" id="sidebar">
 
-  <a class="sidebar-brand"
-     href="/dashboard.html"
-     aria-label="SmartStock dashboard">
+  <div class="sidebar-header">
+    <a class="sidebar-brand" href="/dashboard.html" aria-label="SmartStock dashboard">
+            <span class="brand-mark" aria-hidden="true">
+                <i></i>
+                <i></i>
+                <i></i>
+            </span>
+      <span class="sidebar-brand-text">Smart<span>Stock</span></span>
+    </a>
 
-    <span class="brand-mark" aria-hidden="true">
-      <i></i><i></i><i></i>
-    </span>
+    <button
+            class="sidebar-collapse-button"
+            id="sidebar-collapse-button"
+            type="button"
+            aria-label="Collapse sidebar"
+            aria-expanded="true"
+            title="Collapse sidebar"
+    >
+      <svg class="collapse-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="4" width="17" height="16" rx="2.5"></rect>
+        <path d="M9 4v16"></path>
+        <path d="m15 9-3 3 3 3"></path>
+      </svg>
 
-    <span>Smart<span>Stock</span></span>
-  </a>
+      <span class="collapsed-brand-mark" aria-hidden="true">
+                <i></i>
+                <i></i>
+                <i></i>
+            </span>
+    </button>
+  </div>
 
   <nav class="side-nav" aria-label="Main navigation">
 
-    <a class="side-nav__item" href="/dashboard.html">
-      <span aria-hidden="true">⌂</span>
-      Dashboard
+    <a class="side-nav__item" href="/dashboard.html" title="Dashboard">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+        <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+        <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+      </svg>
+      <span class="side-nav__label">Dashboard</span>
     </a>
 
-    <a class="side-nav__item" href="/products.html">
-      <span aria-hidden="true">◇</span>
-      Products
+    <a class="side-nav__item" href="/products.html" title="Products">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m12 3 9 5-9 5-9-5 9-5Z"></path>
+        <path d="m3 8 9 5 9-5"></path>
+        <path d="M3 8v9l9 5 9-5V8"></path>
+        <path d="M12 13v9"></path>
+      </svg>
+      <span class="side-nav__label">Products</span>
     </a>
 
-    <a class="side-nav__item" href="#partners">
-      <span aria-hidden="true">♙</span>
-      Business Partners
+    <a class="side-nav__item" href="#partners" title="Business Partners">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="10" cy="7" r="4"></circle>
+        <path d="M20 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+      <span class="side-nav__label">Business Partners</span>
     </a>
 
-    <a class="side-nav__item" href="#orders">
-      <span aria-hidden="true">▣</span>
-      Orders
+    <a class="side-nav__item" href="#orders" title="Orders">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 4h-2a2 2 0 0 0-2 2v14h16V6a2 2 0 0 0-2-2h-2"></path>
+        <rect x="8" y="2" width="8" height="4" rx="1"></rect>
+        <path d="M8 11h8"></path>
+        <path d="M8 15h8"></path>
+        <path d="M8 19h5"></path>
+      </svg>
+      <span class="side-nav__label">Orders</span>
     </a>
 
-    <a class="side-nav__item" href="#stock">
-      <span aria-hidden="true">▰</span>
-      Stock
+    <a class="side-nav__item" href="#stock" title="Stock">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m12 3 9 5-9 5-9-5 9-5Z"></path>
+        <path d="m3 12 9 5 9-5"></path>
+        <path d="m3 16 9 5 9-5"></path>
+      </svg>
+      <span class="side-nav__label">Stock</span>
     </a>
 
-    <a class="side-nav__item" href="#reports">
-      <span aria-hidden="true">▥</span>
-      Reports & Analytics
+    <a class="side-nav__item" href="#reports" title="Reports & Analytics">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 3v18h18"></path>
+        <path d="m7 14 4-4 4 3 6-7"></path>
+        <path d="M17 6h4v4"></path>
+      </svg>
+      <span class="side-nav__label">Reports & Analytics</span>
     </a>
 
-    <a class="side-nav__item" href="#company">
-      <span aria-hidden="true">▦</span>
-      Company & Users
+    <a class="side-nav__item" href="#company" title="Company & Users">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="7" width="18" height="14" rx="2"></rect>
+        <path d="M8 7V4h8v3"></path>
+        <path d="M3 12h18"></path>
+        <path d="M10 12v2h4v-2"></path>
+      </svg>
+      <span class="side-nav__label">Company & Users</span>
     </a>
 
   </nav>
 
-  <a class="sidebar-logout" href="/login.html">
-    <span aria-hidden="true">←</span>
-    Sign out
+  <a class="sidebar-logout" href="/login.html" title="Sign out">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10 17l5-5-5-5"></path>
+      <path d="M15 12H3"></path>
+      <path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"></path>
+    </svg>
+    <span class="side-nav__label">Sign out</span>
   </a>
 
 </aside>

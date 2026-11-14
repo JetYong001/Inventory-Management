@@ -1,129 +1,445 @@
+
+/* ========================================
+   SMARTSTOCK SIDEBAR
+======================================== */
+
 .sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
+  width: 232px;
+  height: 100vh;
   min-height: 100vh;
-  padding: 51px 20px 28px;
-  color: #fff;
+  padding: 28px 16px 24px;
+  overflow: hidden;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  color: #ffffff;
   background: linear-gradient(165deg, #0f355a, #164f83);
+  z-index: 20;
+  transition: width 0.28s ease, padding 0.28s ease;
+}
+
+/* ========================================
+   HEADER
+======================================== */
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 4px 0 5px;
 }
 
 .sidebar-brand {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 9px;
-  color: #fff;
-  font-size: 27px;
-  font-weight: 750;
-  letter-spacing: -1px;
+  gap: 10px;
+  min-width: 0;
+  color: #ffffff;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .sidebar-brand:hover {
-  color: #fff;
+  color: #ffffff;
   text-decoration: none;
 }
 
-.sidebar-brand .brand-mark i {
+.sidebar-brand-text {
+  overflow: hidden;
+  font-size: 23px;
+  font-weight: 750;
+  letter-spacing: -0.8px;
+}
+
+.sidebar-brand-text span {
+  color: #78bcfb;
+}
+
+/* ========================================
+   SMARTSTOCK BRAND MARK
+======================================== */
+
+.brand-mark {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  width: 26px;
+  height: 27px;
+  flex: 0 0 26px;
+}
+
+.brand-mark i {
+  display: block;
+  width: 6px;
+  flex: 0 0 6px;
+  border-radius: 2px;
   background: #6db9ff;
 }
 
-.sidebar-brand .brand-mark {
-  height: 27px;
-  grid-template-columns: repeat(3, 6px);
-  gap: 4px;
-}
-
-.sidebar-brand .brand-mark i:nth-child(1) {
+.brand-mark i:nth-child(1) {
   height: 11px;
 }
 
-.sidebar-brand .brand-mark i:nth-child(2) {
+.brand-mark i:nth-child(2) {
   height: 20px;
 }
 
-.sidebar-brand .brand-mark i:nth-child(3) {
+.brand-mark i:nth-child(3) {
   height: 27px;
 }
 
-.sidebar-brand span span {
-  color: #78bcfb;
+/* ========================================
+   COLLAPSE BUTTON
+======================================== */
+
+.sidebar-collapse-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  padding: 6px;
+  border: 0;
+  border-radius: 7px;
+  color: #d9ecff;
+  background: transparent;
+  cursor: pointer;
 }
+
+.sidebar-collapse-button:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.sidebar-collapse-button svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Never show the extra chevron */
+.sidebar-collapse-button .expand-icon,
+.expand-icon {
+  display: none !important;
+}
+
+.collapsed-brand-mark {
+  display: none;
+}
+
+/* ========================================
+   NAVIGATION
+======================================== */
 
 .side-nav {
   display: grid;
   gap: 7px;
-  margin-top: 33px;
+  margin-top: 34px;
 }
 
 .side-nav__item {
   display: flex;
   align-items: center;
   gap: 13px;
-  min-height: 39px;
-  padding: 9px 10px;
-  border-radius: 7px;
-  color: #f1f7ff;
+  min-height: 42px;
+  padding: 9px 11px;
+  overflow: hidden;
+  border-radius: 8px;
+  color: #e5f1fc;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .side-nav__item:hover {
-  background: rgba(255, 255, 255, .1);
-  color: #fff;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.11);
   text-decoration: none;
 }
 
-.side-nav__item > span {
-  width: 16px;
-  color: #d9ecff;
-  font-size: 19px;
-  line-height: 1;
-  text-align: center;
+.side-nav__item svg,
+.sidebar-logout svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
+
+.side-nav__label {
+  overflow: hidden;
+}
+
+/* Active navigation */
 
 .side-nav__item.is-active {
+  color: #ffffff;
   background: #246fd9;
-  box-shadow: inset 0 1px rgba(255,255,255,.12);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.12);
 }
 
-.nav-badge {
-  display: grid;
-  width: 16px;
-  height: 16px;
-  place-items: center;
-  margin-left: auto;
-  border-radius: 50%;
-  color: white;
-  background: #d92d20;
-  font-size: 10px;
-}
+/* ========================================
+   LOGOUT
+======================================== */
 
 .sidebar-logout {
   display: flex;
-  gap: 9px;
   align-items: center;
+  gap: 13px;
+  min-height: 42px;
   margin-top: auto;
-  padding: 12px 10px;
+  padding: 9px 11px;
+  border-radius: 8px;
   color: #cae3fa;
   font-size: 13px;
   font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .sidebar-logout:hover {
-  color: #fff;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
   text-decoration: none;
 }
 
+/* ========================================
+   COLLAPSED SIDEBAR
+======================================== */
+
+body.sidebar-collapsed .sidebar {
+  width: 76px;
+  padding-right: 12px;
+  padding-left: 12px;
+}
+
+body.sidebar-collapsed .sidebar-header {
+  justify-content: center;
+  padding: 0;
+}
+
+body.sidebar-collapsed .sidebar-brand {
+  display: none;
+}
+
+body.sidebar-collapsed .sidebar-collapse-button {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  padding: 0;
+  border-radius: 9px;
+}
+
+/* Hide original icon by default */
+
+body.sidebar-collapsed .sidebar-collapse-button .collapse-icon {
+  display: none;
+}
+
+/* ========================================
+   COLLAPSED LOGO
+======================================== */
+
+body.sidebar-collapsed .sidebar-collapse-button .collapsed-brand-mark {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  width: 26px;
+  height: 27px;
+}
+
+body.sidebar-collapsed .collapsed-brand-mark i {
+  display: block;
+  width: 6px;
+  flex: 0 0 6px;
+  border-radius: 2px;
+  background: #6db9ff;
+}
+
+body.sidebar-collapsed .collapsed-brand-mark i:nth-child(1) {
+  height: 11px;
+}
+
+body.sidebar-collapsed .collapsed-brand-mark i:nth-child(2) {
+  height: 20px;
+}
+
+body.sidebar-collapsed .collapsed-brand-mark i:nth-child(3) {
+  height: 27px;
+}
+
+/* Hover: show original collapse icon */
+
+body.sidebar-collapsed .sidebar-collapse-button:hover .collapsed-brand-mark {
+  display: none;
+}
+
+body.sidebar-collapsed .sidebar-collapse-button:hover .collapse-icon {
+  display: block;
+}
+
+/* ========================================
+   COLLAPSED NAVIGATION
+======================================== */
+
+body.sidebar-collapsed .side-nav {
+  margin-top: 30px;
+}
+
+body.sidebar-collapsed .side-nav__item,
+body.sidebar-collapsed .sidebar-logout {
+  justify-content: center;
+  gap: 0;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+body.sidebar-collapsed .side-nav__label {
+  display: none;
+}
+
+/* ========================================
+   APP LAYOUT
+======================================== */
+
+body .app-shell {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+  transition: grid-template-columns 0.28s ease;
+}
+
+body.sidebar-collapsed .app-shell {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+body .app-shell > .sidebar,
+body .app-shell > #sidebar-container {
+  height: 100vh;
+  min-height: 0;
+}
+
+body .app-shell > main {
+  min-width: 0;
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ========================================
+   MOBILE
+======================================== */
+
 @media (max-width: 760px) {
+  body .app-shell {
+    display: block;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  body .app-shell > main {
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
   .sidebar {
     position: fixed;
-    z-index: 2;
+    top: 0;
+    left: 0;
+    z-index: 1000;
     width: 232px;
+    height: 100dvh;
+    min-height: 100dvh;
     transform: translateX(-100%);
-    transition: transform .2s ease;
+    transition: transform 0.25s ease;
   }
 
   .sidebar.is-open {
     transform: translateX(0);
+  }
+
+  /* Always show full sidebar on mobile */
+
+  body.sidebar-collapsed .sidebar {
+    width: 232px;
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  body.sidebar-collapsed .sidebar-header {
+    justify-content: space-between;
+    padding: 0 4px 0 5px;
+  }
+
+  body.sidebar-collapsed .sidebar-brand {
+    display: flex;
+  }
+
+  body.sidebar-collapsed .sidebar-collapse-button {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    padding: 6px;
+  }
+
+  body.sidebar-collapsed .sidebar-collapse-button .collapse-icon {
+    display: block;
+  }
+
+  body.sidebar-collapsed .sidebar-collapse-button .collapsed-brand-mark {
+    display: none;
+  }
+
+  body.sidebar-collapsed .side-nav {
+    margin-top: 34px;
+  }
+
+  body.sidebar-collapsed .side-nav__item,
+  body.sidebar-collapsed .sidebar-logout {
+    justify-content: flex-start;
+    gap: 13px;
+    padding-right: 11px;
+    padding-left: 11px;
+  }
+
+  body.sidebar-collapsed .side-nav__label {
+    display: inline;
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY
+======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar *,
+  body .app-shell {
+    transition: none !important;
+    animation: none !important;
   }
 }
