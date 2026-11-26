@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmartStock Sales Order Management">
+    <title>Sales Orders | SmartStock</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
+    <link rel="stylesheet" href="/css/sales-orders.css">
+</head>
+
+<body>
+
+<div class="app-shell">
+
+    <div id="sidebar-container"></div>
+
+    <main class="sales-orders-main">
+
+        <!-- PAGE HEADER -->
+        <header class="sales-orders-header">
+
+            <div class="header-left">
+
+                <button
+                        class="menu-button"
+                        id="menu-button"
+                        type="button"
+                        aria-label="Open navigation"
+                >
+                    ☰
+                </button>
+
+                <div class="page-heading">
+
+                    <div class="breadcrumb">
+                        <span>Workspace</span>
+                        <span>/</span>
+                        <strong>Sales Orders</strong>
+                    </div>
+
+                    <h1>Sales Orders</h1>
+
+                    <p>
+                        Create and manage customer sales orders.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="company-profile">
+
+                <div class="company-info">
+                    <strong>SmartStock</strong>
+                    <span>Inventory Management</span>
+                </div>
+
+                <div class="avatar">A</div>
+
+            </div>
+
+        </header>
+
+        <!-- SUMMARY -->
+        <section class="order-summary">
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Total Orders</span>
+                    <span class="summary-icon icon-blue">▤</span>
+                </div>
+
+                <strong id="total-orders">0</strong>
+                <small>All sales orders</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Draft Orders</span>
+                    <span class="summary-icon icon-orange">◷</span>
+                </div>
+
+                <strong id="draft-orders">0</strong>
+                <small>Waiting to be completed</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Completed Orders</span>
+                    <span class="summary-icon icon-green">✓</span>
+                </div>
+
+                <strong id="completed-orders">0</strong>
+                <small>Successfully completed</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Cancelled Orders</span>
+                    <span class="summary-icon icon-red">×</span>
+                </div>
+
+                <strong id="cancelled-orders">0</strong>
+                <small>Cancelled orders</small>
+            </article>
+
+        </section>
+
+        <div id="page-message" class="page-message" role="alert"></div>
+
+        <!-- ORDER REGISTER -->
+        <section class="orders-panel">
+
+            <div class="panel-heading">
+
+                <div>
+                    <span class="section-eyebrow">SALES MANAGEMENT</span>
+
+                    <h2>Sales Order Register</h2>
+
+                    <p>
+                        Manage and track all customer orders.
+                    </p>
+                </div>
+
+                <button
+                        class="primary-button"
+                        id="add-sales-order-button"
+                        type="button"
+                >
+                    <span>+</span>
+                    New Sales Order
+                </button>
+
+            </div>
+
+            <!-- FILTERS -->
+            <div class="orders-toolbar">
+
+                <div class="order-search">
+
+                    <label for="search-orders">Search Orders</label>
+
+                    <div class="search-input-wrapper">
+
+                        <span class="search-icon">⌕</span>
+
+                        <input
+                                type="search"
+                                id="search-orders"
+                                placeholder="Search order number or customer..."
+                        >
+
+                    </div>
+
+                </div>
+
+                <div class="order-filter">
+
+                    <label for="status-filter">Order Status</label>
+
+                    <select id="status-filter">
+
+                        <option value="all">All Status</option>
+                        <option value="DRAFT">Draft</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="CANCELLED">Cancelled</option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+            <!-- TABLE -->
+            <div class="table-container">
+
+                <table class="orders-table">
+
+                    <thead>
+                    <tr>
+                        <th>ORDER</th>
+                        <th>CUSTOMER</th>
+                        <th>ORDER DATE</th>
+                        <th>ITEMS</th>
+                        <th>TOTAL AMOUNT</th>
+                        <th>STATUS</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="sales-orders-table-body">
+
+                    <tr>
+                        <td colspan="7" class="table-loading">
+                            Loading sales orders...
+                        </td>
+                    </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <!-- PAGINATION -->
+            <footer class="pagination-footer">
+
+                <p id="pagination-info">
+                    Showing 0 orders
+                </p>
+
+                <div class="pagination-buttons">
+
+                    <button
+                            type="button"
+                            id="previous-page"
+                            disabled
+                    >
+                        ← Previous
+                    </button>
+
+                    <span id="current-page">1</span>
+
+                    <button
+                            type="button"
+                            id="next-page"
+                            disabled
+                    >
+                        Next →
+                    </button>
+
+                </div>
+
+            </footer>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- ========================================
+     CREATE / EDIT SALES ORDER MODAL
+======================================== -->
+
+<div class="sales-order-modal" id="sales-order-modal" hidden>
+
+    <div class="modal-backdrop" data-close-order-modal></div>
+
+    <section
+            class="modal-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-modal-title"
+    >
+
+        <header class="modal-header">
+
+            <div>
+
+                <span class="section-eyebrow">SALES MANAGEMENT</span>
+
+                <h2 id="order-modal-title">
+                    New Sales Order
+                </h2>
+
+                <p id="order-modal-description">
+                    Select a customer and add products.
+                </p>
+
+            </div>
+
+            <button
+                    type="button"
+                    class="modal-close"
+                    id="close-order-modal"
+                    aria-label="Close"
+            >
+                ×
+            </button>
+
+        </header>
+
+
+        <form id="sales-order-form">
+
+            <div id="form-message" class="form-message" role="alert"></div>
+
+            <!-- CUSTOMER -->
+            <section class="form-section">
+
+                <div class="form-section-heading">
+
+                    <span class="section-number">01</span>
+
+                    <div>
+                        <h3>Customer Information</h3>
+                        <p>Search and select an active customer.</p>
+                    </div>
+
+                </div>
+
+                <div class="field-group">
+
+                    <label for="order-customer-search">
+                        Customer *
+                    </label>
+
+                    <div class="searchable-picker" id="customer-picker">
+
+                        <input
+                                type="text"
+                                id="order-customer-search"
+                                class="picker-search-input"
+                                placeholder="Search customer code or name..."
+                                autocomplete="off"
+                        >
+
+                        <input
+                                type="hidden"
+                                id="order-customer"
+                        >
+
+                        <div
+                                class="picker-options"
+                                id="customer-options"
+                                hidden
+                        ></div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ORDER ITEMS -->
+            <section class="form-section">
+
+                <div class="form-section-heading form-heading-row">
+
+                    <div class="form-heading-left">
+
+                        <span class="section-number">02</span>
+
+                        <div>
+                            <h3>Order Items</h3>
+                            <p>Search products and enter quantities.</p>
+                        </div>
+
+                    </div>
+
+                    <button
+                            type="button"
+                            class="secondary-button"
+                            id="add-order-item"
+                    >
+                        + Add Item
+                    </button>
+
+                </div>
+
+
+                <!-- COLUMN HEADINGS -->
+                <div class="order-item-header">
+
+                    <span>PRODUCT</span>
+                    <span>QUANTITY</span>
+                    <span>UNIT PRICE</span>
+                    <span>SUBTOTAL</span>
+                    <span></span>
+
+                </div>
+
+
+                <!-- PRODUCT ROWS -->
+                <div id="order-items-container"></div>
+
+                <p class="stock-guidance">
+                    Stock availability is checked when completing the order.
+                    The backend calculates the final selling price.
+                </p>
+
+            </section>
+
+
+            <!-- TOTAL -->
+            <div class="order-total-panel">
+
+                <div>
+                    <span>Estimated Order Total</span>
+                    <small>
+                        Based on current product selling prices.
+                    </small>
+                </div>
+
+                <strong id="order-total">RM 0.00</strong>
+
+            </div>
+
+
+            <!-- FOOTER -->
+            <footer class="modal-footer">
+
+                <button
+                        type="button"
+                        class="secondary-button"
+                        id="cancel-order-modal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                        type="submit"
+                        class="primary-button"
+                        id="save-sales-order-button"
+                >
+                    Save Draft Order
+                </button>
+
+            </footer>
+
+        </form>
+
+    </section>
+
+</div>
+
+
+<!-- ========================================
+     ORDER DETAILS MODAL
+======================================== -->
+
+<div class="details-modal" id="order-details-modal" hidden>
+
+    <div class="modal-backdrop" data-close-order-details></div>
+
+    <section
+            class="details-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="details-title"
+    >
+
+        <header class="modal-header">
+
+            <div>
+
+                <span class="section-eyebrow">ORDER DETAILS</span>
+
+                <h2 id="details-title">Sales Order</h2>
+
+                <p id="details-subtitle"></p>
+
+            </div>
+
+            <button
+                    type="button"
+                    class="modal-close"
+                    id="close-order-details"
+            >
+                ×
+            </button>
+
+        </header>
+
+        <div
+                id="order-details-content"
+                class="order-details-content"
+        ></div>
+
+        <footer class="modal-footer">
+
+            <button
+                    type="button"
+                    class="secondary-button"
+                    id="close-order-details-button"
+            >
+                Close
+            </button>
+
+        </footer>
+
+    </section>
+
+</div>
+
+
+<!-- JAVASCRIPT -->
+<script src="/js/api.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/sales-orders.js"></script>
+
+</body>
+</html>
