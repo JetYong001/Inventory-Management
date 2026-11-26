@@ -54,8 +54,6 @@ const elements = {
 
     partnerType: document.getElementById("partner-type"),
     partnerName: document.getElementById("partner-name"),
-    contactPerson: document.getElementById("contact-person"),
-    contactPersonField: document.getElementById("contact-person-field"),
     phone: document.getElementById("partner-phone"),
     email: document.getElementById("partner-email"),
     address: document.getElementById("partner-address"),
@@ -135,7 +133,7 @@ async function initializePartners() {
 
     elements.tableBody.innerHTML = `
         <tr>
-            <td colspan="7" class="table-loading">
+            <td colspan="6" class="table-loading">
                 Loading business partners...
             </td>
         </tr>
@@ -169,7 +167,7 @@ async function initializePartners() {
     if (hasError && results.every(result => result.status === "rejected")) {
         elements.tableBody.innerHTML = `
             <tr>
-                <td colspan="7" class="table-empty">
+                <td colspan="6" class="table-empty">
                     Unable to load business partners.
                 </td>
             </tr>
@@ -203,8 +201,6 @@ function bindEvents() {
     });
 
     elements.form.addEventListener("submit", savePartner);
-
-    elements.partnerType.addEventListener("change", updatePartnerTypeFields);
 
     elements.search.addEventListener("input", () => {
         currentPage = 0;
@@ -295,16 +291,14 @@ function rebuildPartners() {
             ...item,
             partnerType: "supplier",
             partnerCode: item.supplierCode,
-            partnerName: item.supplierName,
-            contact: item.contactPerson || ""
+            partnerName: item.supplierName
         })),
 
         ...customers.map(item => ({
             ...item,
             partnerType: "customer",
             partnerCode: item.customerCode,
-            partnerName: item.customerName,
-            contact: ""
+            partnerName: item.customerName
         }))
     ];
 }
@@ -345,7 +339,6 @@ function getFilteredPartners() {
         const searchableValues = [
             partner.partnerCode,
             partner.partnerName,
-            partner.contact,
             partner.phone,
             partner.email
         ];
@@ -391,7 +384,7 @@ function renderPartners() {
     if (visiblePartners.length === 0) {
         elements.tableBody.innerHTML = `
             <tr>
-                <td colspan="7" class="table-empty">
+                <td colspan="6" class="table-empty">
                     No business partners found.
                 </td>
             </tr>
@@ -425,9 +418,6 @@ function renderPartnerRow(partner) {
     const statusLabel =
         partner.active === true ? "Active" : "Inactive";
 
-    const contactPerson =
-        partner.contact || "—";
-
     return `
         <tr>
             <td>
@@ -448,8 +438,6 @@ function renderPartnerRow(partner) {
                     ${typeLabel}
                 </span>
             </td>
-
-            <td>${escapeHTML(contactPerson)}</td>
 
             <td>${escapeHTML(partner.phone || "—")}</td>
 
@@ -541,7 +529,6 @@ function openPartnerModal(partner = null) {
 
         elements.partnerType.value = partner.partnerType;
         elements.partnerName.value = partner.partnerName || "";
-        elements.contactPerson.value = partner.contact || "";
         elements.phone.value = partner.phone || "";
         elements.email.value = partner.email || "";
         elements.address.value = partner.address || "";
@@ -559,8 +546,6 @@ function openPartnerModal(partner = null) {
             ? "supplier"
             : activeTab;
     }
-
-    updatePartnerTypeFields();
 
     elements.saveButton.textContent = partner
         ? "Update Partner"
@@ -582,15 +567,6 @@ function closePartnerModal() {
 }
 
 
-function updatePartnerTypeFields() {
-
-    const isSupplier =
-        elements.partnerType.value === "supplier";
-
-    elements.contactPersonField.hidden = !isSupplier;
-}
-
-
 /* ========================================
    SAVE PARTNER
 ======================================== */
@@ -609,41 +585,24 @@ async function savePartner(event) {
     const phone = elements.phone.value.trim();
     const email = elements.email.value.trim();
     const address = elements.address.value.trim();
-    const contactPerson = elements.contactPerson.value.trim();
 
     if (!name) {
         showFormMessage("Partner name is required.");
         return;
     }
 
-    if (type === "supplier") {
+    if (name.length > 150) {
+        showFormMessage(
+            `${capitalize(type)} name cannot exceed 150 characters.`
+        );
+        return;
+    }
 
-        if (name.length > 150) {
-            showFormMessage("Supplier name cannot exceed 150 characters.");
-            return;
-        }
-
-        if (contactPerson.length > 100) {
-            showFormMessage("Contact person cannot exceed 100 characters.");
-            return;
-        }
-
-        if (phone.length > 30 || email.length > 150 || address.length > 500) {
-            showFormMessage("Please check the maximum length of your contact information.");
-            return;
-        }
-
-    } else {
-
-        if (name.length > 150) {
-            showFormMessage("Customer name cannot exceed 150 characters.");
-            return;
-        }
-
-        if (phone.length > 30 || email.length > 150 || address.length > 500) {
-            showFormMessage("Please check the maximum length of your contact information.");
-            return;
-        }
+    if (phone.length > 30 || email.length > 150 || address.length > 500) {
+        showFormMessage(
+            "Please check the maximum length of your contact information."
+        );
+        return;
     }
 
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -654,7 +613,6 @@ async function savePartner(event) {
     const payload = type === "supplier"
         ? {
             supplierName: name,
-            contactPerson,
             phone,
             email,
             address
@@ -757,12 +715,6 @@ function openDetailsModal(partner) {
 
     document.getElementById("details-partner-name").textContent =
         partner.partnerName || "—";
-
-    document.getElementById("details-contact-person").textContent =
-        partner.contact || "—";
-
-    document.getElementById("details-contact-wrapper").hidden =
-        !isSupplier;
 
     document.getElementById("details-phone").textContent =
         partner.phone || "—";
