@@ -1,0 +1,811 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmartStock purchase management">
+    <title>Purchases | SmartStock</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
+    <link rel="stylesheet" href="/css/purchases.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+    <div id="sidebar-container"></div>
+
+    <main class="purchases-main">
+
+        <header class="purchases-header">
+
+            <div class="header-left">
+
+                <button class="menu-button"
+                        id="menu-button"
+                        type="button"
+                        aria-label="Open navigation"
+                        aria-controls="sidebar"
+                        aria-expanded="false">
+                    ☰
+                </button>
+
+                <div class="page-heading">
+
+                    <div class="breadcrumb">
+                        <span>Workspace</span>
+                        <span class="breadcrumb-divider">/</span>
+                        <strong>Purchases</strong>
+                    </div>
+
+                    <h1>Purchases</h1>
+
+                    <p>
+                        Manage supplier purchase orders and goods receiving.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="company-profile">
+
+                <div class="company-info">
+                    <strong>Acme Stationery Sdn. Bhd.</strong>
+                    <span>Company Admin</span>
+                </div>
+
+                <span class="avatar">A</span>
+
+            </div>
+
+        </header>
+
+
+        <!-- SUMMARY -->
+
+        <section class="purchase-summary">
+
+            <article class="summary-card">
+
+                <div class="summary-top">
+                    <span>Total Purchases</span>
+                    <span class="summary-icon blue">▤</span>
+                </div>
+
+                <strong id="total-purchases">—</strong>
+                <small>All purchase orders</small>
+
+            </article>
+
+
+            <article class="summary-card">
+
+                <div class="summary-top">
+                    <span>Draft</span>
+                    <span class="summary-icon orange">◷</span>
+                </div>
+
+                <strong id="draft-purchases">—</strong>
+                <small>Awaiting goods receiving</small>
+
+            </article>
+
+
+            <article class="summary-card">
+
+                <div class="summary-top">
+                    <span>Partially Received</span>
+                    <span class="summary-icon purple">↗</span>
+                </div>
+
+                <strong id="partial-purchases">—</strong>
+                <small>Goods partially received</small>
+
+            </article>
+
+
+            <article class="summary-card">
+
+                <div class="summary-top">
+                    <span>Fully Received</span>
+                    <span class="summary-icon green">✓</span>
+                </div>
+
+                <strong id="received-purchases">—</strong>
+                <small>All goods received</small>
+
+            </article>
+
+        </section>
+
+
+        <!-- PAGE MESSAGE -->
+
+        <div id="page-message"
+             class="page-message"
+             role="alert">
+        </div>
+
+
+        <!-- PURCHASE LIST -->
+
+        <section class="purchases-panel">
+
+            <div class="panel-heading">
+
+                <div>
+
+                    <span class="section-eyebrow">
+                        PROCUREMENT MANAGEMENT
+                    </span>
+
+                    <h2>Purchase Order List</h2>
+
+                    <p>
+                        View and manage supplier purchase orders.
+                    </p>
+
+                </div>
+
+                <button class="primary-button"
+                        id="add-purchase-button"
+                        type="button">
+
+                    <span>+</span>
+                    Create Purchase
+
+                </button>
+
+            </div>
+
+
+            <!-- TOOLBAR -->
+
+            <div class="purchase-toolbar">
+
+                <div class="purchase-search">
+
+                    <label for="purchase-search">
+                        Search Purchases
+                    </label>
+
+                    <div class="search-wrapper">
+
+                        <span class="search-icon">⌕</span>
+
+                        <input type="search"
+                               id="purchase-search"
+                               placeholder="Search PO number, supplier or product...">
+
+                    </div>
+
+                </div>
+
+
+                <div class="purchase-filter">
+
+                    <label for="purchase-status-filter">
+                        Purchase Status
+                    </label>
+
+                    <select id="purchase-status-filter">
+
+                        <option value="ALL">All Status</option>
+                        <option value="DRAFT">Draft</option>
+                        <option value="PARTIALLY_RECEIVED">
+                            Partially Received
+                        </option>
+                        <option value="RECEIVED">Received</option>
+                        <option value="CANCELLED">Cancelled</option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <!-- TABLE -->
+
+            <div class="table-container">
+
+                <table class="purchases-table">
+
+                    <thead>
+
+                    <tr>
+                        <th>PURCHASE NUMBER</th>
+                        <th>SUPPLIER</th>
+                        <th>ITEMS</th>
+                        <th>RECEIVED</th>
+                        <th>PURCHASE DATE</th>
+                        <th>TOTAL AMOUNT</th>
+                        <th>STATUS</th>
+                        <th>ACTIONS</th>
+                    </tr>
+
+                    </thead>
+
+                    <tbody id="purchases-table-body">
+
+                    <tr>
+                        <td colspan="8" class="table-loading">
+                            Loading purchases...
+                        </td>
+                    </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <!-- PAGINATION -->
+
+            <footer class="pagination-footer">
+
+                <p id="pagination-info">
+                    Loading purchases...
+                </p>
+
+                <div class="pagination-buttons">
+
+                    <button type="button"
+                            id="previous-page"
+                            disabled>
+                        ← Previous
+                    </button>
+
+                    <span id="current-page">1</span>
+
+                    <button type="button"
+                            id="next-page"
+                            disabled>
+                        Next →
+                    </button>
+
+                </div>
+
+            </footer>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- CREATE / EDIT PURCHASE MODAL -->
+
+<div class="purchase-modal"
+     id="purchase-modal"
+     hidden>
+
+    <div class="modal-backdrop"
+         data-close-purchase>
+    </div>
+
+
+    <section class="purchase-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="purchase-modal-title">
+
+        <header class="modal-header">
+
+            <div>
+
+                <span class="section-eyebrow">
+                    PROCUREMENT MANAGEMENT
+                </span>
+
+                <h2 id="purchase-modal-title">
+                    Create Purchase
+                </h2>
+
+                <p id="purchase-modal-description">
+                    Select a supplier and add products to your purchase.
+                </p>
+
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-purchase-modal"
+                    aria-label="Close">
+                ×
+            </button>
+
+        </header>
+
+
+        <form id="purchase-form">
+
+            <div id="form-message"
+                 class="form-message"
+                 role="alert">
+            </div>
+
+
+            <!-- SUPPLIER -->
+
+            <section class="form-section">
+
+                <div class="form-section-heading">
+
+                    <span class="section-number">01</span>
+
+                    <div>
+                        <h3>Supplier Information</h3>
+                        <p>Select the supplier for this purchase.</p>
+                    </div>
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label for="supplier-search">
+                        Search Supplier *
+                    </label>
+
+                    <div class="autocomplete-wrapper">
+
+                        <div class="search-wrapper">
+
+                            <span class="search-icon">⌕</span>
+
+                            <input type="search"
+                                   id="supplier-search"
+                                   placeholder="Search supplier name, code, phone or email..."
+                                   autocomplete="off">
+
+                        </div>
+
+                        <div class="autocomplete-results"
+                             id="supplier-results">
+                        </div>
+
+                    </div>
+
+
+                    <div class="selected-record"
+                         id="selected-supplier"
+                         hidden>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- PRODUCTS -->
+
+            <section class="form-section">
+
+                <div class="form-section-heading">
+
+                    <span class="section-number">02</span>
+
+                    <div>
+                        <h3>Purchase Items</h3>
+                        <p>
+                            Search products and enter purchase quantities and costs.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label for="product-search">
+                        Search Products *
+                    </label>
+
+                    <div class="autocomplete-wrapper">
+
+                        <div class="search-wrapper">
+
+                            <span class="search-icon">⌕</span>
+
+                            <input type="search"
+                                   id="product-search"
+                                   placeholder="Search product name or product code..."
+                                   autocomplete="off">
+
+                        </div>
+
+                        <div class="autocomplete-results"
+                             id="product-results">
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="selected-items-section">
+
+                    <div class="selected-items-heading">
+
+                        <div>
+                            <h3>Selected Products</h3>
+                            <p>Adjust the quantity and unit purchase cost.</p>
+                        </div>
+
+                        <span class="item-count"
+                              id="item-count">
+                            0 Items
+                        </span>
+
+                    </div>
+
+
+                    <div class="items-table-container">
+
+                        <table class="items-table">
+
+                            <thead>
+
+                            <tr>
+                                <th>PRODUCT</th>
+                                <th>QUANTITY</th>
+                                <th>UNIT COST (RM)</th>
+                                <th>SUBTOTAL</th>
+                                <th></th>
+                            </tr>
+
+                            </thead>
+
+                            <tbody id="purchase-items-body">
+
+                            <tr>
+                                <td colspan="5" class="items-empty">
+                                    Search and select products to add.
+                                </td>
+                            </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- TOTAL -->
+
+            <section class="purchase-total-section">
+
+                <div class="total-row">
+
+                    <span>Total Items</span>
+
+                    <strong id="total-quantity">0</strong>
+
+                </div>
+
+
+                <div class="total-row grand-total">
+
+                    <span>Grand Total</span>
+
+                    <strong id="grand-total">
+                        RM 0.00
+                    </strong>
+
+                </div>
+
+                <p class="total-note">
+                    Purchase total is calculated from quantity multiplied
+                    by unit cost.
+                </p>
+
+            </section>
+
+
+            <footer class="modal-footer">
+
+                <button type="button"
+                        class="secondary-button"
+                        id="cancel-purchase-modal">
+                    Cancel
+                </button>
+
+                <button type="submit"
+                        class="primary-button"
+                        id="save-purchase-button">
+                    Save Draft Purchase
+                </button>
+
+            </footer>
+
+        </form>
+
+    </section>
+
+</div>
+
+
+<!-- GOODS RECEIVING MODAL -->
+
+<div class="receive-modal"
+     id="receive-modal"
+     hidden>
+
+    <div class="modal-backdrop"
+         data-close-receive>
+    </div>
+
+
+    <section class="receive-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="receive-modal-title">
+
+        <header class="modal-header">
+
+            <div>
+
+                <span class="section-eyebrow">
+                    INVENTORY RECEIVING
+                </span>
+
+                <h2 id="receive-modal-title">
+                    Receive Goods
+                </h2>
+
+                <p id="receive-description">
+                    Enter the actual quantities received from the supplier.
+                </p>
+
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-receive-modal"
+                    aria-label="Close">
+                ×
+            </button>
+
+        </header>
+
+
+        <form id="receive-form">
+
+            <div id="receive-message"
+                 class="form-message"
+                 role="alert">
+            </div>
+
+
+            <div class="receive-info">
+
+                <div>
+                    <span>Purchase Number</span>
+                    <strong id="receive-purchase-number">—</strong>
+                </div>
+
+                <div>
+                    <span>Supplier</span>
+                    <strong id="receive-supplier-name">—</strong>
+                </div>
+
+            </div>
+
+
+            <div class="receive-instruction">
+                Enter the actual quantity received for each product.
+                Leave the quantity as 0 when the product has not arrived.
+            </div>
+
+
+            <div class="table-container">
+
+                <table class="items-table receive-items-table">
+
+                    <thead>
+
+                    <tr>
+                        <th>PRODUCT</th>
+                        <th>ORDERED</th>
+                        <th>RECEIVED</th>
+                        <th>REMAINING</th>
+                        <th>RECEIVING NOW</th>
+                    </tr>
+
+                    </thead>
+
+                    <tbody id="receive-items-body">
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <footer class="modal-footer">
+
+                <button type="button"
+                        class="secondary-button"
+                        id="cancel-receive-modal">
+                    Cancel
+                </button>
+
+                <button type="submit"
+                        class="primary-button"
+                        id="submit-receive-button">
+                    Confirm Receiving
+                </button>
+
+            </footer>
+
+        </form>
+
+    </section>
+
+</div>
+
+
+<!-- PURCHASE DETAILS MODAL -->
+
+<div class="details-modal"
+     id="details-modal"
+     hidden>
+
+    <div class="modal-backdrop"
+         data-close-details>
+    </div>
+
+
+    <section class="details-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="details-title">
+
+        <header class="modal-header">
+
+            <div>
+
+                <span class="section-eyebrow">
+                    PURCHASE DETAILS
+                </span>
+
+                <h2 id="details-title">Purchase Order</h2>
+
+                <p id="details-description"></p>
+
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-details-modal"
+                    aria-label="Close">
+                ×
+            </button>
+
+        </header>
+
+
+        <div class="details-information">
+
+            <div class="detail-card">
+                <span>Supplier</span>
+                <strong id="details-supplier">—</strong>
+            </div>
+
+            <div class="detail-card">
+                <span>Purchase Date</span>
+                <strong id="details-date">—</strong>
+            </div>
+
+            <div class="detail-card">
+                <span>Purchase Number</span>
+                <strong id="details-number">—</strong>
+            </div>
+
+            <div class="detail-card">
+                <span>Status</span>
+                <strong id="details-status">—</strong>
+            </div>
+
+        </div>
+
+
+        <div class="details-section-heading">
+            <h3>Purchase Items</h3>
+        </div>
+
+
+        <div class="table-container">
+
+            <table class="purchases-table details-items-table">
+
+                <thead>
+
+                <tr>
+                    <th>PRODUCT</th>
+                    <th>ORDERED</th>
+                    <th>RECEIVED</th>
+                    <th>REMAINING</th>
+                    <th>UNIT COST</th>
+                    <th>SUBTOTAL</th>
+                </tr>
+
+                </thead>
+
+                <tbody id="details-items-body">
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <div class="details-total">
+
+            <span>Total Purchase Amount</span>
+
+            <strong id="details-total">
+                RM 0.00
+            </strong>
+
+        </div>
+
+
+        <div class="details-section-heading receipt-heading">
+            <h3>Goods Received Notes</h3>
+            <p>Receiving history for this purchase.</p>
+        </div>
+
+
+        <div class="table-container">
+
+            <table class="purchases-table receipt-table">
+
+                <thead>
+
+                <tr>
+                    <th>GRN NUMBER</th>
+                    <th>RECEIVED DATE</th>
+                    <th>PRODUCTS</th>
+                </tr>
+
+                </thead>
+
+                <tbody id="receipt-history-body">
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <footer class="modal-footer">
+
+            <button type="button"
+                    class="secondary-button"
+                    id="close-details-button">
+                Close
+            </button>
+
+        </footer>
+
+    </section>
+
+</div>
+
+
+<script src="/js/sidebar.js"></script>
+<script src="/js/purchases.js"></script>
+
+</body>
+</html>
