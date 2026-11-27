@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outstanding | SmartStock</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
+    <link rel="stylesheet" href="/css/outstanding.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+    <div id="sidebar-container"></div>
+
+    <main class="outstanding-main">
+
+        <header class="outstanding-header">
+            <div class="header-left">
+                <button class="menu-button" id="menu-button"
+                        type="button" aria-label="Open navigation">☰</button>
+
+                <div class="page-heading">
+                    <div class="breadcrumb">
+                        <span>Workspace</span>
+                        <span>/</span>
+                        <strong>Outstanding</strong>
+                    </div>
+
+                    <h1>Outstanding</h1>
+                    <p>Monitor unpaid customer and supplier invoices.</p>
+                </div>
+            </div>
+
+            <div class="company-profile">
+                <div class="company-info">
+                    <strong>Acme Stationery Sdn. Bhd.</strong>
+                    <span>Company Admin</span>
+                </div>
+                <span class="avatar">A</span>
+            </div>
+        </header>
+
+        <section class="outstanding-summary">
+
+            <article class="summary-card">
+                <span>Customer Outstanding</span>
+                <strong id="customer-outstanding">RM 0.00</strong>
+                <small>Money owed by customers</small>
+            </article>
+
+            <article class="summary-card">
+                <span>Supplier Outstanding</span>
+                <strong id="supplier-outstanding">RM 0.00</strong>
+                <small>Money owed to suppliers</small>
+            </article>
+
+            <article class="summary-card">
+                <span>Outstanding Invoices</span>
+                <strong id="total-invoices">0</strong>
+                <small>Unsettled sales and purchase invoices</small>
+            </article>
+
+            <article class="summary-card">
+                <span>Net Outstanding</span>
+                <strong id="net-outstanding">RM 0.00</strong>
+                <small>Customer outstanding minus supplier outstanding</small>
+            </article>
+
+        </section>
+
+        <div id="page-message" class="page-message" role="alert"></div>
+
+        <section class="outstanding-panel">
+
+            <div class="panel-heading">
+                <div>
+                    <span class="section-eyebrow">FINANCIAL MANAGEMENT</span>
+                    <h2>Outstanding Invoices</h2>
+                    <p>Track the remaining balance for each invoice.</p>
+                </div>
+
+                <button class="refresh-button" id="refresh-button" type="button">
+                    <span>↻</span> Refresh
+                </button>
+            </div>
+
+            <div class="outstanding-tabs">
+
+                <button class="outstanding-tab active" data-type="CUSTOMERS">
+                    Customer Outstanding
+                    <span id="customer-count">0</span>
+                </button>
+
+                <button class="outstanding-tab" data-type="SUPPLIERS">
+                    Supplier Outstanding
+                    <span id="supplier-count">0</span>
+                </button>
+
+            </div>
+
+            <div class="outstanding-toolbar">
+
+                <div class="search-field">
+                    <label for="outstanding-search">Search</label>
+                    <input type="search" id="outstanding-search"
+                           placeholder="Search invoice number, code or name...">
+                </div>
+
+                <div class="sort-field">
+                    <label for="sort-filter">Sort By</label>
+                    <select id="sort-filter">
+                        <option value="DATE_DESC">Newest Invoice</option>
+                        <option value="DATE_ASC">Oldest Invoice</option>
+                        <option value="AMOUNT_DESC">Highest Outstanding</option>
+                        <option value="AMOUNT_ASC">Lowest Outstanding</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="table-container">
+
+                <table class="outstanding-table">
+                    <thead>
+                    <tr>
+                        <th>INVOICE NUMBER</th>
+                        <th id="party-heading">CUSTOMER</th>
+                        <th>INVOICE DATE</th>
+                        <th>TOTAL AMOUNT</th>
+                        <th>OUTSTANDING AMOUNT</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="outstanding-table-body">
+                    <tr>
+                        <td colspan="5" class="table-empty">
+                            Loading outstanding invoices...
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+
+            </div>
+
+            <footer class="pagination-footer">
+                <span id="pagination-info">Showing 0 invoices</span>
+
+                <div class="pagination-actions">
+                    <button id="previous-page" disabled>Previous</button>
+                    <span id="current-page">1</span>
+                    <button id="next-page" disabled>Next</button>
+                </div>
+            </footer>
+
+        </section>
+
+    </main>
+</div>
+
+<script src="/js/sidebar.js"></script>
+<script src="/js/outstanding.js"></script>
+
+</body>
+</html>

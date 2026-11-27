@@ -1,0 +1,187 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Notes | SmartStock</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
+    <link rel="stylesheet" href="/css/credit-notes.css">
+</head>
+<body>
+<div class="app-shell">
+    <div id="sidebar-container"></div>
+
+    <main class="credit-main">
+        <header class="credit-header">
+            <div class="header-left">
+                <div class="page-heading">
+                    <div class="breadcrumb">
+                        <span>Workspace</span><span>/</span>
+                        <strong>Credit Notes</strong>
+                    </div>
+                    <h1>Credit Notes</h1>
+                    <p>View sales and purchase credit notes generated from returns.</p>
+                </div>
+            </div>
+
+            <div class="company-profile">
+                <div class="company-info">
+                    <strong>Acme Stationery Sdn. Bhd.</strong>
+                    <span>Company Admin</span>
+                </div>
+                <span class="avatar">A</span>
+            </div>
+        </header>
+
+        <section class="credit-summary">
+            <article class="summary-card">
+                <span>Total Credit Notes</span>
+                <strong id="total-count">0</strong>
+                <small>Sales and purchase credit notes</small>
+            </article>
+            <article class="summary-card">
+                <span>Sales Credit Notes</span>
+                <strong id="sales-count">0</strong>
+                <small>Generated from sales returns</small>
+            </article>
+            <article class="summary-card">
+                <span>Purchase Credit Notes</span>
+                <strong id="purchase-count">0</strong>
+                <small>Generated from purchase returns</small>
+            </article>
+            <article class="summary-card">
+                <span>Total Credit Amount</span>
+                <strong id="total-amount">RM 0.00</strong>
+                <small>Combined credit note value</small>
+            </article>
+        </section>
+
+        <div id="page-message" class="page-message" role="alert"></div>
+
+        <section class="credit-panel">
+            <div class="panel-heading">
+                <div>
+                    <span class="section-eyebrow">FINANCIAL MANAGEMENT</span>
+                    <h2>Credit Note Management</h2>
+                    <p>Review credit notes issued from approved returns.</p>
+                </div>
+                <button class="secondary-button" id="refresh-button" type="button">
+                    ↻ Refresh
+                </button>
+            </div>
+
+            <div class="credit-tabs">
+                <button class="credit-tab active" data-type="SALES" type="button">
+                    Sales Credit Notes <span id="sales-tab-count">0</span>
+                </button>
+                <button class="credit-tab" data-type="PURCHASE" type="button">
+                    Purchase Credit Notes <span id="purchase-tab-count">0</span>
+                </button>
+            </div>
+
+            <div class="credit-toolbar">
+                <div class="search-field">
+                    <label for="credit-search">Search Credit Note</label>
+                    <input id="credit-search" type="search"
+                           placeholder="Search credit note, invoice or return number...">
+                </div>
+                <div class="filter-field">
+                    <label for="status-filter">Status</label>
+                    <select id="status-filter">
+                        <option value="ALL">All Status</option>
+                        <option value="ISSUED">Issued</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="credit-table">
+                    <thead>
+                    <tr>
+                        <th>CREDIT NOTE</th>
+                        <th>RETURN NUMBER</th>
+                        <th>INVOICE NUMBER</th>
+                        <th>CREDIT DATE</th>
+                        <th>TOTAL AMOUNT</th>
+                        <th>STATUS</th>
+                        <th>ACTION</th>
+                    </tr>
+                    </thead>
+                    <tbody id="credit-table-body">
+                    <tr><td colspan="7" class="table-empty">Loading credit notes...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination-footer">
+                <span id="pagination-info">Showing 0 records</span>
+                <div class="pagination-actions">
+                    <button id="previous-page" type="button">Previous</button>
+                    <span id="page-number">1 / 1</span>
+                    <button id="next-page" type="button">Next</button>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div class="credit-modal" id="details-modal" hidden>
+    <div class="modal-backdrop" data-close="true"></div>
+    <section class="modal-dialog">
+        <div class="modal-header">
+            <div>
+                <h2 id="details-title">Credit Note Details</h2>
+                <p id="details-subtitle">Credit note information</p>
+            </div>
+            <button class="modal-close" type="button" id="close-details">×</button>
+        </div>
+
+        <div class="document-card">
+            <div class="document-top">
+                <div>
+                    <span class="document-label" id="document-type">SALES CREDIT NOTE</span>
+                    <h3 id="document-number">-</h3>
+                </div>
+                <span class="status-badge" id="document-status">ISSUED</span>
+            </div>
+
+            <div class="document-grid">
+                <div>
+                    <span>Related Return</span>
+                    <strong id="document-return">-</strong>
+                </div>
+                <div>
+                    <span>Related Invoice</span>
+                    <strong id="document-invoice">-</strong>
+                </div>
+                <div>
+                    <span>Credit Note Date</span>
+                    <strong id="document-date">-</strong>
+                </div>
+                <div>
+                    <span>Created At</span>
+                    <strong id="document-created">-</strong>
+                </div>
+            </div>
+
+            <div class="document-amount">
+                <span>Total Credit Amount</span>
+                <strong id="document-amount">RM 0.00</strong>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="secondary-button" id="close-details-bottom" type="button">
+                Close
+            </button>
+        </div>
+    </section>
+</div>
+
+<script src="/js/sidebar.js"></script>
+<script src="/js/credit-notes.js"></script>
+</body>
+</html>
