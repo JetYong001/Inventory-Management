@@ -1,0 +1,447 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmartStock sales return management">
+    <title>Sales Returns | SmartStock</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
+    <link rel="stylesheet" href="/css/sales-orders.css">
+    <link rel="stylesheet" href="/css/sales-returns.css">
+</head>
+
+<body>
+
+<div class="app-shell">
+
+    <div id="sidebar-container"></div>
+
+    <main class="orders-main">
+
+        <header class="orders-header">
+
+            <div class="header-left">
+
+                <button class="menu-button"
+                        id="menu-button"
+                        type="button"
+                        aria-label="Open navigation"
+                        aria-controls="sidebar"
+                        aria-expanded="false">
+                    ☰
+                </button>
+
+                <div class="page-heading">
+
+                    <div class="breadcrumb">
+                        <span>Workspace</span>
+                        <span class="breadcrumb-divider">/</span>
+                        <strong>Sales Returns</strong>
+                    </div>
+
+                    <h1>Sales Returns</h1>
+
+                    <p>
+                        Manage customer returns and track returned quantities.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="company-profile">
+                <div class="company-info">
+                    <strong>Acme Stationery Sdn. Bhd.</strong>
+                    <span>Company Admin</span>
+                </div>
+                <span class="avatar">A</span>
+            </div>
+
+        </header>
+
+
+        <section class="order-summary">
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Completed Sales</span>
+                    <span class="summary-icon blue">▤</span>
+                </div>
+                <strong id="completed-sales-count">—</strong>
+                <small>Eligible sales orders</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Total Returns</span>
+                    <span class="summary-icon orange">↩</span>
+                </div>
+                <strong id="total-returns-count">—</strong>
+                <small>Sales return records</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Returned Quantity</span>
+                    <span class="summary-icon green">✓</span>
+                </div>
+                <strong id="returned-quantity">—</strong>
+                <small>Total items returned</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Return Amount</span>
+                    <span class="summary-icon purple">RM</span>
+                </div>
+                <strong id="return-amount">RM 0.00</strong>
+                <small>Total return value</small>
+            </article>
+
+        </section>
+
+
+        <div id="page-message"
+             class="page-message"
+             role="alert">
+        </div>
+
+
+        <section class="orders-panel">
+
+            <div class="panel-heading">
+
+                <div>
+                    <span class="section-eyebrow">SALES MANAGEMENT</span>
+                    <h2>Sales Return Management</h2>
+                    <p>
+                        Select a completed sales order to process a customer return.
+                    </p>
+                </div>
+
+                <button class="primary-button"
+                        id="refresh-button"
+                        type="button">
+                    ↻ Refresh
+                </button>
+
+            </div>
+
+
+            <div class="order-toolbar">
+
+                <div class="order-search">
+                    <label for="return-search">Search Sales</label>
+
+                    <div class="search-wrapper">
+                        <span class="search-icon">⌕</span>
+                        <input type="search"
+                               id="return-search"
+                               placeholder="Search sales number, customer or invoice...">
+                    </div>
+                </div>
+
+                <div class="order-filter">
+                    <label for="return-filter">Return Status</label>
+
+                    <select id="return-filter">
+                        <option value="ALL">All Status</option>
+                        <option value="NOT_RETURNED">Not Returned</option>
+                        <option value="PARTIAL">Partially Returned</option>
+                        <option value="RETURNED">Fully Returned</option>
+                    </select>
+                </div>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table class="orders-table sales-returns-table">
+
+                    <thead>
+                    <tr>
+                        <th>SALES NUMBER</th>
+                        <th>CUSTOMER</th>
+                        <th>SALES DATE</th>
+                        <th>INVOICE</th>
+                        <th>ITEMS</th>
+                        <th>RETURN STATUS</th>
+                        <th>TOTAL AMOUNT</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="sales-returns-table-body">
+                    <tr>
+                        <td colspan="8" class="table-loading">
+                            Loading sales records...
+                        </td>
+                    </tr>
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <footer class="pagination-footer">
+
+                <p id="pagination-info">Loading sales records...</p>
+
+                <div class="pagination-buttons">
+
+                    <button type="button"
+                            id="previous-page"
+                            disabled>
+                        ← Previous
+                    </button>
+
+                    <span id="current-page">1</span>
+
+                    <button type="button"
+                            id="next-page"
+                            disabled>
+                        Next →
+                    </button>
+
+                </div>
+
+            </footer>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- CREATE SALES RETURN MODAL -->
+
+<div class="return-modal" id="return-modal" hidden>
+
+    <div class="modal-backdrop" data-close-return></div>
+
+    <section class="return-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="return-modal-title">
+
+        <header class="modal-header">
+
+            <div>
+                <span class="section-eyebrow">SALES MANAGEMENT</span>
+                <h2 id="return-modal-title">Create Sales Return</h2>
+                <p>Select the products and quantities being returned.</p>
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-return-modal"
+                    aria-label="Close">
+                ×
+            </button>
+
+        </header>
+
+
+        <div id="return-form-message"
+             class="form-message"
+             role="alert">
+        </div>
+
+
+        <div class="return-sales-information">
+
+            <div class="return-info-card">
+                <span>Sales Number</span>
+                <strong id="return-sales-number">—</strong>
+            </div>
+
+            <div class="return-info-card">
+                <span>Customer</span>
+                <strong id="return-customer-name">—</strong>
+            </div>
+
+            <div class="return-info-card">
+                <span>Invoice Number</span>
+                <strong id="return-invoice-number">—</strong>
+            </div>
+
+            <div class="return-info-card">
+                <span>Original Sales Amount</span>
+                <strong id="return-sales-amount">RM 0.00</strong>
+            </div>
+
+        </div>
+
+
+        <form id="sales-return-form">
+
+            <section class="return-form-section">
+
+                <div class="return-section-heading">
+                    <div>
+                        <h3>Return Items</h3>
+                        <p>
+                            The maximum return quantity is based on the remaining quantity.
+                        </p>
+                    </div>
+                </div>
+
+
+                <div class="table-container return-items-container">
+
+                    <table class="orders-table return-items-table">
+
+                        <thead>
+                        <tr>
+                            <th>PRODUCT</th>
+                            <th>SOLD QTY</th>
+                            <th>RETURNED</th>
+                            <th>REMAINING</th>
+                            <th>UNIT PRICE</th>
+                            <th>RETURN QTY</th>
+                        </tr>
+                        </thead>
+
+                        <tbody id="return-items-body">
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+
+            <section class="return-reason-section">
+
+                <label for="return-reason">Return Reason *</label>
+
+                <textarea id="return-reason"
+                          maxlength="500"
+                          rows="3"
+                          placeholder="Enter the reason for this sales return..."
+                          required></textarea>
+
+                <small>Maximum 500 characters.</small>
+
+            </section>
+
+
+            <div class="return-total-section">
+
+                <div class="return-total-row">
+                    <span>Selected Return Quantity</span>
+                    <strong id="selected-return-quantity">0</strong>
+                </div>
+
+                <div class="return-total-row grand-total">
+                    <span>Return Amount</span>
+                    <strong id="selected-return-amount">RM 0.00</strong>
+                </div>
+
+                <p>
+                    The backend calculates the final return amount using the original sales item prices.
+                </p>
+
+            </div>
+
+
+            <footer class="modal-footer">
+
+                <button type="button"
+                        class="secondary-button"
+                        id="cancel-return-button">
+                    Cancel
+                </button>
+
+                <button type="submit"
+                        class="primary-button"
+                        id="submit-return-button">
+                    Submit Sales Return
+                </button>
+
+            </footer>
+
+        </form>
+
+    </section>
+
+</div>
+
+
+<!-- RETURN HISTORY MODAL -->
+
+<div class="return-history-modal" id="return-history-modal" hidden>
+
+    <div class="modal-backdrop" data-close-history></div>
+
+    <section class="return-history-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="history-modal-title">
+
+        <header class="modal-header">
+
+            <div>
+                <span class="section-eyebrow">RETURN HISTORY</span>
+                <h2 id="history-modal-title">Sales Return History</h2>
+                <p id="history-modal-description"></p>
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-history-modal"
+                    aria-label="Close">
+                ×
+            </button>
+
+        </header>
+
+
+        <div class="table-container">
+
+            <table class="orders-table history-table">
+
+                <thead>
+                <tr>
+                    <th>RETURN NUMBER</th>
+                    <th>RETURN DATE</th>
+                    <th>INVOICE</th>
+                    <th>REASON</th>
+                    <th>ITEMS</th>
+                    <th>RETURN AMOUNT</th>
+                </tr>
+                </thead>
+
+                <tbody id="return-history-body">
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <footer class="modal-footer">
+            <button type="button"
+                    class="secondary-button"
+                    id="close-history-button">
+                Close
+            </button>
+        </footer>
+
+    </section>
+
+</div>
+
+
+<script src="/js/sidebar.js"></script>
+<script src="/js/sales-returns.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,441 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Returns | SmartStock</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
+    <link rel="stylesheet" href="/css/purchases.css">
+    <link rel="stylesheet" href="/css/purchase-returns.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+    <div id="sidebar-container"></div>
+
+    <main class="purchases-main">
+
+        <header class="purchases-header">
+
+            <div class="header-left">
+
+                <button class="menu-button"
+                        id="menu-button"
+                        type="button"
+                        aria-label="Open navigation">
+                    ☰
+                </button>
+
+                <div class="page-heading">
+
+                    <div class="breadcrumb">
+                        <span>Workspace</span>
+                        <span class="breadcrumb-divider">/</span>
+                        <strong>Purchase Returns</strong>
+                    </div>
+
+                    <h1>Purchase Returns</h1>
+
+                    <p>
+                        Manage returned goods to suppliers and track supplier credits.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="company-profile">
+                <div class="company-info">
+                    <strong>Acme Stationery Sdn. Bhd.</strong>
+                    <span>Company Admin</span>
+                </div>
+                <span class="avatar">A</span>
+            </div>
+
+        </header>
+
+
+        <section class="purchase-summary">
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Received Purchases</span>
+                    <span class="summary-icon blue">▤</span>
+                </div>
+                <strong id="received-purchase-count">—</strong>
+                <small>Eligible purchase orders</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Total Returns</span>
+                    <span class="summary-icon orange">↩</span>
+                </div>
+                <strong id="purchase-return-count">—</strong>
+                <small>Purchase return records</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Returned Quantity</span>
+                    <span class="summary-icon purple">□</span>
+                </div>
+                <strong id="purchase-return-quantity">—</strong>
+                <small>Total goods returned</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-top">
+                    <span>Return Value</span>
+                    <span class="summary-icon green">RM</span>
+                </div>
+                <strong id="purchase-return-value">RM 0.00</strong>
+                <small>Total supplier credit value</small>
+            </article>
+
+        </section>
+
+
+        <div id="page-message" class="page-message" role="alert"></div>
+
+
+        <section class="purchases-panel">
+
+            <div class="panel-heading">
+
+                <div>
+                    <span class="section-eyebrow">PROCUREMENT MANAGEMENT</span>
+                    <h2>Purchase Return Management</h2>
+                    <p>
+                        Select a fully received purchase to return goods to its supplier.
+                    </p>
+                </div>
+
+                <button class="primary-button"
+                        id="refresh-button"
+                        type="button">
+                    ↻ Refresh
+                </button>
+
+            </div>
+
+
+            <div class="purchase-toolbar">
+
+                <div class="purchase-search">
+                    <label for="return-search">Search Purchases</label>
+
+                    <div class="search-wrapper">
+                        <span class="search-icon">⌕</span>
+                        <input type="search"
+                               id="return-search"
+                               placeholder="Search purchase number, supplier or invoice...">
+                    </div>
+                </div>
+
+                <div class="purchase-filter">
+                    <label for="return-filter">Return Status</label>
+
+                    <select id="return-filter">
+                        <option value="ALL">All Status</option>
+                        <option value="NOT_RETURNED">Not Returned</option>
+                        <option value="PARTIAL">Partially Returned</option>
+                        <option value="RETURNED">Fully Returned</option>
+                    </select>
+                </div>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table class="purchases-table purchase-returns-table">
+
+                    <thead>
+                    <tr>
+                        <th>PURCHASE NUMBER</th>
+                        <th>SUPPLIER</th>
+                        <th>PURCHASE DATE</th>
+                        <th>INVOICE</th>
+                        <th>RETURNED / RECEIVED</th>
+                        <th>RETURN STATUS</th>
+                        <th>PURCHASE AMOUNT</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="purchase-returns-table-body">
+                    <tr>
+                        <td colspan="8" class="table-loading">
+                            Loading purchases...
+                        </td>
+                    </tr>
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <footer class="pagination-footer">
+
+                <p id="pagination-info">Loading purchases...</p>
+
+                <div class="pagination-buttons">
+
+                    <button type="button"
+                            id="previous-page"
+                            disabled>
+                        ← Previous
+                    </button>
+
+                    <span id="current-page">1</span>
+
+                    <button type="button"
+                            id="next-page"
+                            disabled>
+                        Next →
+                    </button>
+
+                </div>
+
+            </footer>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- CREATE PURCHASE RETURN -->
+
+<div class="purchase-return-modal" id="return-modal" hidden>
+
+    <div class="modal-backdrop" data-close-return></div>
+
+    <section class="purchase-return-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="return-modal-title">
+
+        <header class="modal-header">
+
+            <div>
+                <span class="section-eyebrow">PROCUREMENT MANAGEMENT</span>
+                <h2 id="return-modal-title">Create Purchase Return</h2>
+                <p>Choose received goods and enter the return quantities.</p>
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-return-modal"
+                    aria-label="Close">
+                ×
+            </button>
+
+        </header>
+
+
+        <div id="return-form-message"
+             class="form-message"
+             role="alert">
+        </div>
+
+
+        <div class="return-information">
+
+            <div class="return-info-card">
+                <span>Purchase Number</span>
+                <strong id="return-purchase-number">—</strong>
+            </div>
+
+            <div class="return-info-card">
+                <span>Supplier</span>
+                <strong id="return-supplier-name">—</strong>
+            </div>
+
+            <div class="return-info-card">
+                <span>Purchase Invoice</span>
+                <strong id="return-invoice-number">—</strong>
+            </div>
+
+            <div class="return-info-card">
+                <span>Original Purchase Amount</span>
+                <strong id="return-original-amount">RM 0.00</strong>
+            </div>
+
+        </div>
+
+
+        <form id="purchase-return-form">
+
+            <section class="return-form-section">
+
+                <div class="return-section-heading">
+                    <div>
+                        <h3>Return Items</h3>
+                        <p>
+                            Return quantity cannot exceed the remaining received quantity.
+                        </p>
+                    </div>
+                </div>
+
+
+                <div class="table-container return-items-container">
+
+                    <table class="purchases-table return-items-table">
+
+                        <thead>
+                        <tr>
+                            <th>PRODUCT</th>
+                            <th>ORDERED</th>
+                            <th>RECEIVED</th>
+                            <th>RETURNED</th>
+                            <th>REMAINING</th>
+                            <th>UNIT COST</th>
+                            <th>RETURN QTY</th>
+                        </tr>
+                        </thead>
+
+                        <tbody id="return-items-body">
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+
+            <section class="return-reason-section">
+
+                <label for="return-reason">Return Reason *</label>
+
+                <textarea id="return-reason"
+                          maxlength="500"
+                          rows="3"
+                          placeholder="Enter the reason for returning these goods..."
+                          required></textarea>
+
+                <small>Maximum 500 characters.</small>
+
+            </section>
+
+
+            <div class="return-total-section">
+
+                <div class="return-total-row">
+                    <span>Selected Return Quantity</span>
+                    <strong id="selected-return-quantity">0</strong>
+                </div>
+
+                <div class="return-total-row grand-total">
+                    <span>Return Value</span>
+                    <strong id="selected-return-value">RM 0.00</strong>
+                </div>
+
+                <p>
+                    Return value is calculated using the original purchase unit cost.
+                </p>
+
+            </div>
+
+
+            <footer class="modal-footer">
+
+                <button type="button"
+                        class="secondary-button"
+                        id="cancel-return-button">
+                    Cancel
+                </button>
+
+                <button type="submit"
+                        class="primary-button"
+                        id="submit-return-button">
+                    Submit Purchase Return
+                </button>
+
+            </footer>
+
+        </form>
+
+    </section>
+
+</div>
+
+
+<!-- RETURN HISTORY -->
+
+<div class="purchase-return-modal" id="history-modal" hidden>
+
+    <div class="modal-backdrop" data-close-history></div>
+
+    <section class="purchase-return-dialog history-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="history-modal-title">
+
+        <header class="modal-header">
+
+            <div>
+                <span class="section-eyebrow">RETURN HISTORY</span>
+                <h2 id="history-modal-title">Purchase Return History</h2>
+                <p id="history-description"></p>
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    id="close-history-modal"
+                    aria-label="Close">
+                ×
+            </button>
+
+        </header>
+
+
+        <div class="table-container">
+
+            <table class="purchases-table history-table">
+
+                <thead>
+                <tr>
+                    <th>RETURN NUMBER</th>
+                    <th>RETURN DATE</th>
+                    <th>INVOICE</th>
+                    <th>REASON</th>
+                    <th>QUANTITY</th>
+                    <th>RETURN VALUE</th>
+                </tr>
+                </thead>
+
+                <tbody id="history-table-body">
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <footer class="modal-footer">
+            <button type="button"
+                    class="secondary-button"
+                    id="close-history-button">
+                Close
+            </button>
+        </footer>
+
+    </section>
+
+</div>
+
+
+<script src="/js/sidebar.js"></script>
+<script src="/js/purchase-returns.js"></script>
+
+</body>
+</html>
