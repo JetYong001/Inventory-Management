@@ -1,0 +1,260 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refunds | SmartStock</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
+    <link rel="stylesheet" href="/css/refunds.css">
+</head>
+<body>
+<div class="app-shell">
+    <div id="sidebar-container"></div>
+
+    <main class="refund-main">
+        <header class="refund-header">
+            <div class="header-left">
+                <button class="menu-button" type="button" id="menu-button">☰</button>
+                <div class="page-heading">
+                    <div class="breadcrumb">
+                        <span>Workspace</span><span>/</span><strong>Refunds</strong>
+                    </div>
+                    <h1>Refunds</h1>
+                    <p>Manage customer and supplier credit refunds.</p>
+                </div>
+            </div>
+            <div class="company-profile">
+                <div class="company-info">
+                    <strong>SmartStock</strong>
+                    <span>Company Admin</span>
+                </div>
+                <span class="avatar">A</span>
+            </div>
+        </header>
+
+        <section class="refund-summary">
+            <article class="summary-card">
+                <span>Total Refunds</span>
+                <strong id="summary-total-refunds">0</strong>
+                <small>All recorded refunds</small>
+            </article>
+            <article class="summary-card">
+                <span>Customer Refunds</span>
+                <strong id="summary-customer-refunds">RM 0.00</strong>
+                <small>Refunded to customers</small>
+            </article>
+            <article class="summary-card">
+                <span>Supplier Refunds</span>
+                <strong id="summary-supplier-refunds">RM 0.00</strong>
+                <small>Refunded by suppliers</small>
+            </article>
+            <article class="summary-card">
+                <span>Total Refunded</span>
+                <strong id="summary-total-amount">RM 0.00</strong>
+                <small>Customer and supplier refunds</small>
+            </article>
+        </section>
+
+        <div id="page-message" class="page-message" role="alert"></div>
+
+        <section class="refund-panel">
+            <div class="panel-heading">
+                <div>
+                    <span class="section-eyebrow">FINANCIAL MANAGEMENT</span>
+                    <h2>Refund Records</h2>
+                    <p>View refund history and record new refunds.</p>
+                </div>
+                <button class="primary-button" id="add-refund-button" type="button">
+                    <span>+</span> Record Refund
+                </button>
+            </div>
+
+            <div class="refund-tabs">
+                <button class="refund-tab active" data-type="ALL" type="button">
+                    All Refunds <span id="all-count">0</span>
+                </button>
+                <button class="refund-tab" data-type="CUSTOMER" type="button">
+                    Customer Refunds <span id="customer-count">0</span>
+                </button>
+                <button class="refund-tab" data-type="SUPPLIER" type="button">
+                    Supplier Refunds <span id="supplier-count">0</span>
+                </button>
+            </div>
+
+            <div class="refund-toolbar">
+                <div class="search-field">
+                    <label for="refund-search">Search Refund</label>
+                    <input type="search" id="refund-search"
+                           placeholder="Search refund number, name or reference...">
+                </div>
+                <div class="filter-field">
+                    <label for="method-filter">Payment Method</label>
+                    <select id="method-filter">
+                        <option value="ALL">All Methods</option>
+                        <option value="CASH">Cash</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CARD">Card</option>
+                        <option value="E_WALLET">E-Wallet</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="refund-table">
+                    <thead>
+                    <tr>
+                        <th>REFUND NUMBER</th>
+                        <th>TYPE</th>
+                        <th>CUSTOMER / SUPPLIER</th>
+                        <th>REFUND DATE</th>
+                        <th>PAYMENT METHOD</th>
+                        <th>REFERENCE</th>
+                        <th>AMOUNT</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                    </thead>
+                    <tbody id="refund-table-body">
+                    <tr><td colspan="8" class="table-empty">Loading refunds...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="pagination-footer">
+                <span id="pagination-info">Showing 0 refunds</span>
+                <div class="pagination-actions">
+                    <button id="previous-page" type="button" disabled>Previous</button>
+                    <span id="current-page">1 / 1</span>
+                    <button id="next-page" type="button" disabled>Next</button>
+                </div>
+            </footer>
+        </section>
+    </main>
+</div>
+
+<!-- CREATE REFUND -->
+<div class="refund-modal" id="refund-modal" hidden>
+    <div class="modal-backdrop" data-close-refund></div>
+
+    <section class="modal-dialog">
+        <header class="modal-header">
+            <div>
+                <span class="section-eyebrow">NEW TRANSACTION</span>
+                <h2>Record Refund</h2>
+                <p>Refund an available customer or supplier credit balance.</p>
+            </div>
+            <button class="modal-close" id="close-refund-modal" type="button">×</button>
+        </header>
+
+        <form id="refund-form">
+            <div class="form-grid">
+                <div class="field-group full-width">
+                    <label for="refund-type">Refund Type *</label>
+                    <select id="refund-type" required>
+                        <option value="CUSTOMER">Customer Refund</option>
+                        <option value="SUPPLIER">Supplier Refund</option>
+                    </select>
+                </div>
+
+                <div class="field-group full-width">
+                    <label id="account-label" for="account-search">Customer *</label>
+                    <div class="account-search-wrapper">
+                        <input type="search" id="account-search"
+                               placeholder="Search customer code or name..."
+                               autocomplete="off">
+                        <div class="account-search-results" id="account-search-results" hidden></div>
+                    </div>
+                    <small id="account-hint">Search by customer code or name.</small>
+                </div>
+
+                <div class="balance-card full-width" id="balance-card" hidden>
+                    <div>
+                        <span>Available Credit Balance</span>
+                        <strong id="available-balance">RM 0.00</strong>
+                    </div>
+                    <small>Refund amount cannot exceed available credit balance.</small>
+                </div>
+
+                <div class="field-group">
+                    <label for="refund-amount">Refund Amount (RM) *</label>
+                    <input type="number" id="refund-amount" min="0.01"
+                           step="0.01" placeholder="0.00" required disabled>
+                    <small>Cannot exceed available credit balance.</small>
+                </div>
+
+                <div class="field-group">
+                    <label for="refund-date">Refund Date *</label>
+                    <input type="date" id="refund-date" required>
+                </div>
+
+                <div class="field-group">
+                    <label for="refund-method">Payment Method *</label>
+                    <select id="refund-method" required>
+                        <option value="CASH">Cash</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CARD">Card</option>
+                        <option value="E_WALLET">E-Wallet</option>
+                    </select>
+                </div>
+
+                <div class="field-group">
+                    <label for="refund-reference">Reference Number</label>
+                    <input type="text" id="refund-reference"
+                           maxlength="100" placeholder="Transaction reference">
+                </div>
+
+                <div class="field-group full-width">
+                    <label for="refund-remarks">Remarks</label>
+                    <textarea id="refund-remarks" rows="3"
+                              maxlength="500" placeholder="Optional remarks"></textarea>
+                </div>
+            </div>
+
+            <div id="form-message" class="form-message" role="alert"></div>
+
+            <footer class="modal-footer">
+                <button class="secondary-button" id="cancel-refund-button"
+                        type="button">Cancel</button>
+                <button class="primary-button" id="submit-refund-button"
+                        type="submit" disabled>Save Refund</button>
+            </footer>
+        </form>
+    </section>
+</div>
+
+<!-- DETAILS -->
+<div class="refund-modal" id="details-modal" hidden>
+    <div class="modal-backdrop" data-close-details></div>
+    <section class="modal-dialog details-dialog">
+        <header class="modal-header">
+            <div>
+                <span class="section-eyebrow">REFUND DETAILS</span>
+                <h2 id="details-refund-number">Refund</h2>
+                <p>Recorded refund information.</p>
+            </div>
+            <button class="modal-close" id="close-details-modal" type="button">×</button>
+        </header>
+
+        <div class="details-grid">
+            <div class="detail-item"><span>Refund Type</span><strong id="details-type">-</strong></div>
+            <div class="detail-item"><span>Customer / Supplier</span><strong id="details-account">-</strong></div>
+            <div class="detail-item"><span>Refund Date</span><strong id="details-date">-</strong></div>
+            <div class="detail-item"><span>Payment Method</span><strong id="details-method">-</strong></div>
+            <div class="detail-item"><span>Amount</span><strong id="details-amount">RM 0.00</strong></div>
+            <div class="detail-item"><span>Reference Number</span><strong id="details-reference">-</strong></div>
+            <div class="detail-item full-width"><span>Remarks</span><strong id="details-remarks">-</strong></div>
+            <div class="detail-item full-width"><span>Created At</span><strong id="details-created-at">-</strong></div>
+        </div>
+
+        <footer class="modal-footer">
+            <button class="secondary-button" id="close-details-button" type="button">Close</button>
+        </footer>
+    </section>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/refunds.js"></script>
+</body>
+</html>
