@@ -1,0 +1,322 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoices | SmartStock</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
+    <link rel="stylesheet" href="/css/invoices.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+    <div id="sidebar-container"></div>
+
+    <main class="invoice-main">
+
+        <header class="invoice-header">
+            <div class="header-left">
+                <button class="menu-button" id="menu-button"
+                        type="button" aria-label="Open navigation">☰</button>
+
+                <div class="page-heading">
+                    <div class="breadcrumb">
+                        <span>Workspace</span>
+                        <span>/</span>
+                        <strong>Invoices</strong>
+                    </div>
+                    <h1>Invoices</h1>
+                    <p>Manage sales invoices and purchase invoices.</p>
+                </div>
+            </div>
+
+            <div class="company-profile">
+                <div class="company-info">
+                    <strong>Acme Stationery Sdn. Bhd.</strong>
+                    <span>Company Admin</span>
+                </div>
+                <span class="avatar">A</span>
+            </div>
+        </header>
+
+        <section class="invoice-summary">
+
+            <article class="summary-card">
+                <span>Total Invoices</span>
+                <strong id="total-invoices">0</strong>
+                <small>All generated invoices</small>
+            </article>
+
+            <article class="summary-card">
+                <span>Unpaid</span>
+                <strong id="unpaid-invoices">0</strong>
+                <small>Outstanding invoices</small>
+            </article>
+
+            <article class="summary-card">
+                <span>Paid</span>
+                <strong id="paid-invoices">0</strong>
+                <small>Fully paid invoices</small>
+            </article>
+
+            <article class="summary-card">
+                <span>Total Outstanding</span>
+                <strong id="total-outstanding">RM 0.00</strong>
+                <small>Remaining invoice balance</small>
+            </article>
+
+        </section>
+
+        <div id="page-message" class="page-message" role="alert"></div>
+
+        <section class="invoice-panel">
+
+            <div class="panel-heading">
+                <div>
+                    <span class="section-eyebrow">FINANCIAL MANAGEMENT</span>
+                    <h2>Invoice Management</h2>
+                    <p>View, generate and print your invoices.</p>
+                </div>
+
+                <button class="primary-button" id="create-invoice-button">
+                    <span>+</span> Create Invoice
+                </button>
+            </div>
+
+            <div class="invoice-tabs">
+                <button class="invoice-tab active" data-type="SALES">
+                    Sales Invoices
+                    <span id="sales-count">0</span>
+                </button>
+
+                <button class="invoice-tab" data-type="PURCHASE">
+                    Purchase Invoices
+                    <span id="purchase-count">0</span>
+                </button>
+            </div>
+
+            <div class="invoice-toolbar">
+
+                <div class="search-field">
+                    <label for="invoice-search">Search Invoice</label>
+                    <input type="search" id="invoice-search"
+                           placeholder="Search invoice number, customer or supplier...">
+                </div>
+
+                <div class="filter-field">
+                    <label for="invoice-status-filter">Payment Status</label>
+                    <select id="invoice-status-filter">
+                        <option value="ALL">All Status</option>
+                        <option value="UNPAID">Unpaid</option>
+                        <option value="PARTIALLY_PAID">Partially Paid</option>
+                        <option value="PAID">Paid</option>
+                        <option value="CREDITED">Credited</option>
+                        <option value="PARTIALLY_CREDITED">Partially Credited</option>
+                        <option value="SETTLED">Settled</option>
+                        <option value="PARTIALLY_SETTLED">Partially Settled</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="table-container">
+
+                <table class="invoice-table">
+                    <thead>
+                    <tr>
+                        <th>INVOICE NUMBER</th>
+                        <th id="party-heading">CUSTOMER</th>
+                        <th>REFERENCE</th>
+                        <th>INVOICE DATE</th>
+                        <th>TOTAL AMOUNT</th>
+                        <th>PAID</th>
+                        <th>OUTSTANDING</th>
+                        <th>STATUS</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="invoice-table-body">
+                    <tr>
+                        <td colspan="9" class="table-empty">Loading invoices...</td>
+                    </tr>
+                    </tbody>
+                </table>
+
+            </div>
+
+            <footer class="pagination-footer">
+                <span id="pagination-info">Showing 0 invoices</span>
+
+                <div class="pagination-actions">
+                    <button id="previous-page" disabled>Previous</button>
+                    <span id="current-page">1</span>
+                    <button id="next-page" disabled>Next</button>
+                </div>
+            </footer>
+
+        </section>
+
+    </main>
+</div>
+
+
+<!-- CREATE INVOICE MODAL -->
+
+<div class="invoice-modal" id="create-modal" hidden>
+
+    <div class="modal-backdrop" data-close-create></div>
+
+    <section class="modal-dialog">
+
+        <header class="modal-header">
+            <div>
+                <span class="section-eyebrow">GENERATE INVOICE</span>
+                <h2 id="create-modal-title">Create Sales Invoice</h2>
+                <p>Select a completed transaction to generate an invoice.</p>
+            </div>
+
+            <button class="modal-close" id="close-create-modal">×</button>
+        </header>
+
+        <div class="field-group">
+            <label for="source-search">Search Transaction</label>
+            <input type="search" id="source-search"
+                   placeholder="Search transaction number or customer...">
+        </div>
+
+        <div class="source-list" id="source-list">
+            <div class="table-empty">Loading transactions...</div>
+        </div>
+
+        <div id="create-message" class="form-message"></div>
+
+        <footer class="modal-footer">
+            <button class="secondary-button" id="cancel-create-modal">
+                Cancel
+            </button>
+            <button class="primary-button" id="confirm-create-invoice" disabled>
+                Generate Invoice
+            </button>
+        </footer>
+
+    </section>
+</div>
+
+
+<!-- INVOICE DETAILS MODAL -->
+
+<div class="invoice-modal" id="details-modal" hidden>
+
+    <div class="modal-backdrop" data-close-details></div>
+
+    <section class="modal-dialog details-dialog">
+
+        <header class="modal-header">
+            <div>
+                <span class="section-eyebrow">INVOICE DETAILS</span>
+                <h2 id="details-title">Invoice</h2>
+                <p id="details-description"></p>
+            </div>
+
+            <button class="modal-close" id="close-details-modal">×</button>
+        </header>
+
+        <div id="invoice-print-area">
+
+            <div class="print-company">
+                <h2>SmartStock</h2>
+                <p>Inventory Management System</p>
+            </div>
+
+            <div class="invoice-document-heading">
+                <h1 id="document-type">SALES INVOICE</h1>
+                <strong id="document-number"></strong>
+            </div>
+
+            <div class="document-information">
+
+                <div>
+                    <span id="party-label">Bill To</span>
+                    <strong id="document-party"></strong>
+                    <p id="document-code"></p>
+                    <p id="document-phone"></p>
+                    <p id="document-email"></p>
+                    <p id="document-address"></p>
+                </div>
+
+                <div class="document-meta">
+                    <span>Invoice Date</span>
+                    <strong id="document-date"></strong>
+
+                    <span>Reference</span>
+                    <strong id="document-reference"></strong>
+
+                    <span>Status</span>
+                    <strong id="document-status"></strong>
+                </div>
+
+            </div>
+
+            <div class="table-container">
+                <table class="document-table">
+                    <thead>
+                    <tr>
+                        <th>NO.</th>
+                        <th>PRODUCT</th>
+                        <th>QUANTITY</th>
+                        <th>UNIT PRICE</th>
+                        <th>SUBTOTAL</th>
+                    </tr>
+                    </thead>
+                    <tbody id="document-items"></tbody>
+                </table>
+            </div>
+
+            <div class="document-total">
+                <div>
+                    <span>Total Amount</span>
+                    <strong id="document-total"></strong>
+                </div>
+                <div>
+                    <span>Total Paid</span>
+                    <strong id="document-paid"></strong>
+                </div>
+                <div>
+                    <span>Credit Applied</span>
+                    <strong id="document-credit"></strong>
+                </div>
+                <div class="outstanding-row">
+                    <span>Outstanding Balance</span>
+                    <strong id="document-outstanding"></strong>
+                </div>
+            </div>
+
+            <p class="document-note">
+                This invoice is generated by SmartStock.
+            </p>
+
+        </div>
+
+        <footer class="modal-footer no-print">
+            <button class="secondary-button" id="close-details-button">
+                Close
+            </button>
+
+            <button class="primary-button" id="print-invoice-button">
+                Print / Save PDF
+            </button>
+        </footer>
+
+    </section>
+</div>
+
+<script src="/js/sidebar.js"></script>
+<script src="/js/invoices.js"></script>
+
+</body>
+</html>
